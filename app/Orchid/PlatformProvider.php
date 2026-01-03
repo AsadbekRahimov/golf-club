@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Orchid;
 
+use App\Models\BookingRequest;
+use App\Models\Client;
+use App\Models\Payment;
 use Orchid\Platform\Dashboard;
 use Orchid\Platform\ItemPermission;
 use Orchid\Platform\OrchidServiceProvider;
@@ -12,91 +15,76 @@ use Orchid\Support\Color;
 
 class PlatformProvider extends OrchidServiceProvider
 {
-    /**
-     * Bootstrap the application services.
-     *
-     * @param Dashboard $dashboard
-     *
-     * @return void
-     */
     public function boot(Dashboard $dashboard): void
     {
         parent::boot($dashboard);
-
-        // ...
     }
 
-    /**
-     * Register the application menu.
-     *
-     * @return Menu[]
-     */
     public function menu(): array
     {
         return [
-            Menu::make('Get Started')
-                ->icon('bs.book')
-                ->title('Navigation')
-                ->route(config('platform.index')),
+            Menu::make('Панель управления')
+                ->icon('bs.speedometer2')
+                ->route('platform.dashboard')
+                ->title('Главная'),
 
-            Menu::make('Sample Screen')
-                ->icon('bs.collection')
-                ->route('platform.example')
-                ->badge(fn () => 6),
+            Menu::make('Новые заявки')
+                ->icon('bs.person-plus')
+                ->route('platform.clients.pending')
+                ->badge(fn () => Client::pending()->count() ?: null, Color::WARNING)
+                ->title('Клиенты'),
 
-            Menu::make('Form Elements')
-                ->icon('bs.card-list')
-                ->route('platform.example.fields')
-                ->active('*/examples/form/*'),
+            Menu::make('Все клиенты')
+                ->icon('bs.people')
+                ->route('platform.clients'),
 
-            Menu::make('Layouts Overview')
-                ->icon('bs.window-sidebar')
-                ->route('platform.example.layouts'),
+            Menu::make('Ожидающие')
+                ->icon('bs.hourglass-split')
+                ->route('platform.bookings.pending')
+                ->badge(fn () => BookingRequest::awaitingAction()->count() ?: null, Color::INFO)
+                ->title('Бронирования'),
 
-            Menu::make('Grid System')
-                ->icon('bs.columns-gap')
-                ->route('platform.example.grid'),
+            Menu::make('Все бронирования')
+                ->icon('bs.journal-text')
+                ->route('platform.bookings'),
 
-            Menu::make('Charts')
-                ->icon('bs.bar-chart')
-                ->route('platform.example.charts'),
+            Menu::make('Проверка чеков')
+                ->icon('bs.receipt')
+                ->route('platform.payments.pending')
+                ->badge(fn () => Payment::pending()->count() ?: null, Color::WARNING)
+                ->title('Платежи'),
 
-            Menu::make('Cards')
-                ->icon('bs.card-text')
-                ->route('platform.example.cards')
+            Menu::make('Все платежи')
+                ->icon('bs.credit-card')
+                ->route('platform.payments'),
+
+            Menu::make('Шкафы')
+                ->icon('bs.archive')
+                ->route('platform.lockers')
+                ->title('Управление'),
+
+            Menu::make('Подписки')
+                ->icon('bs.card-checklist')
+                ->route('platform.subscriptions'),
+
+            Menu::make('Настройки')
+                ->icon('bs.gear')
+                ->route('platform.settings')
                 ->divider(),
 
-            Menu::make(__('Users'))
-                ->icon('bs.people')
+            Menu::make(__('Пользователи'))
+                ->icon('bs.person-gear')
                 ->route('platform.systems.users')
                 ->permission('platform.systems.users')
-                ->title(__('Access Controls')),
+                ->title(__('Система')),
 
-            Menu::make(__('Roles'))
+            Menu::make(__('Роли'))
                 ->icon('bs.shield')
                 ->route('platform.systems.roles')
-                ->permission('platform.systems.roles')
-                ->divider(),
-
-            Menu::make('Documentation')
-                ->title('Docs')
-                ->icon('bs.box-arrow-up-right')
-                ->url('https://orchid.software/en/docs')
-                ->target('_blank'),
-
-            Menu::make('Changelog')
-                ->icon('bs.box-arrow-up-right')
-                ->url('https://github.com/orchidsoftware/platform/blob/master/CHANGELOG.md')
-                ->target('_blank')
-                ->badge(fn () => Dashboard::version(), Color::DARK),
+                ->permission('platform.systems.roles'),
         ];
     }
 
-    /**
-     * Register permissions for the application.
-     *
-     * @return ItemPermission[]
-     */
     public function permissions(): array
     {
         return [

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\LockerStatus;
+use App\Enums\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -53,8 +54,13 @@ class Locker extends Model
     public function activeSubscription(): HasOne
     {
         return $this->hasOne(Subscription::class)
-            ->where('status', 'active')
+            ->where('status', SubscriptionStatus::ACTIVE)
             ->latest();
+    }
+
+    public function currentSubscription(): HasOne
+    {
+        return $this->activeSubscription();
     }
 
     public function isAvailable(): bool

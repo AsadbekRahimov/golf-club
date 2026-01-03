@@ -1,64 +1,20 @@
 <?php
 
-use Telegram\Bot\Commands\HelpCommand;
-
 return [
-    /*
-    |--------------------------------------------------------------------------
-    | Your Telegram Bots
-    |--------------------------------------------------------------------------
-    | You may use multiple bots at once using the manager class. Each bot
-    | that you own should be configured here.
-    |
-    | Here are each of the telegram bots config parameters.
-    |
-    | Supported Params:
-    |
-    | - name: The *personal* name you would like to refer to your bot as.
-    |
-    |       - token:    Your Telegram Bot's Access Token.
-                        Refer for more details: https://core.telegram.org/bots#botfather
-    |                   Example: (string) '123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11'.
-    |
-    |       - commands: (Optional) Commands to register for this bot,
-    |                   Supported Values: "Command Group Name", "Shared Command Name", "Full Path to Class".
-    |                   Default: Registers Global Commands.
-    |                   Example: (array) [
-    |                       'admin', // Command Group Name.
-    |                       'status', // Shared Command Name.
-    |                       Acme\Project\Commands\BotFather\HelloCommand::class,
-    |                       Acme\Project\Commands\BotFather\ByeCommand::class,
-    |             ]
-    */
     'bots' => [
-        'mybot' => [
-            'token' => env('TELEGRAM_BOT_TOKEN', 'YOUR-BOT-TOKEN'),
-            'certificate_path' => env('TELEGRAM_CERTIFICATE_PATH', 'YOUR-CERTIFICATE-PATH'),
-            'webhook_url' => env('TELEGRAM_WEBHOOK_URL', 'YOUR-BOT-WEBHOOK-URL'),
-            /*
-             * @see https://core.telegram.org/bots/api#update
-             */
-            'allowed_updates' => null,
-            'commands' => [
-                // Acme\Project\Commands\MyTelegramBot\BotCommand::class
-            ],
+        'golfclub' => [
+            'token' => env('TELEGRAM_BOT_TOKEN', ''),
+            'webhook_url' => env('TELEGRAM_WEBHOOK_URL', ''),
+            'allowed_updates' => ['message', 'callback_query'],
+            'commands' => [],
         ],
-
-        //        'mySecondBot' => [
-        //            'token' => '123456:abc',
-        //        ],
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Default Bot Name
-    |--------------------------------------------------------------------------
-    |
-    | Here you may specify which of the bots you wish to use as
-    | your default bot for regular use.
-    |
-    */
-    'default' => 'mybot',
+    'default' => 'golfclub',
+
+    'webhook_secret' => env('TELEGRAM_WEBHOOK_SECRET', ''),
+
+    'admin_chat_id' => env('TELEGRAM_ADMIN_CHAT_ID', ''),
 
     /*
     |--------------------------------------------------------------------------

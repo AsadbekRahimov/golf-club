@@ -1,8 +1,12 @@
 <?php
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Schedule;
 
-Artisan::command('inspire', function () {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
+// Проверка истекающих подписок каждый день в 9:00
+Schedule::command('subscriptions:check-expiring')->dailyAt('09:00');
+
+// Обработка истекших подписок каждый день в 00:05
+Schedule::command('subscriptions:process-expired')->dailyAt('00:05');
+
+// Ежедневный отчёт + бэкап в Telegram в 23:50
+Schedule::command('report:daily')->dailyAt('23:50');

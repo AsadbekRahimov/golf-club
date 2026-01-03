@@ -1,0 +1,109 @@
+<?php
+
+namespace App\Orchid\Screens;
+
+use App\Models\Setting;
+use Illuminate\Http\Request;
+use Orchid\Screen\Actions\Button;
+use Orchid\Screen\Fields\Input;
+use Orchid\Screen\Fields\TextArea;
+use Orchid\Screen\Screen;
+use Orchid\Support\Color;
+use Orchid\Support\Facades\Layout;
+use Orchid\Support\Facades\Toast;
+
+class SettingsScreen extends Screen
+{
+    public function name(): ?string
+    {
+        return 'Настройки';
+    }
+
+    public function description(): ?string
+    {
+        return 'Системные настройки Golf Club';
+    }
+
+    public function query(): iterable
+    {
+        return [
+            'settings' => Setting::all()->keyBy('key'),
+        ];
+    }
+
+    public function commandBar(): iterable
+    {
+        return [
+            Button::make('Сохранить')
+                ->icon('bs.check')
+                ->type(Color::PRIMARY)
+                ->method('save'),
+        ];
+    }
+
+    public function layout(): iterable
+    {
+        return [
+            Layout::rows([
+                Input::make('settings.game_once_price')
+                    ->type('number')
+                    ->step('0.01')
+                    ->title('Стоимость единоразовой игры ($)')
+                    ->value(Setting::getValue('game_once_price', 50)),
+
+                Input::make('settings.game_monthly_price')
+                    ->type('number')
+                    ->step('0.01')
+                    ->title('Стоимость месячной подписки ($)')
+                    ->value(Setting::getValue('game_monthly_price', 200)),
+
+                Input::make('settings.locker_monthly_price')
+                    ->type('number')
+                    ->step('0.01')
+                    ->title('Стоимость аренды шкафа в месяц ($)')
+                    ->value(Setting::getValue('locker_monthly_price', 10)),
+            ])->title('💰 Тарифы'),
+
+            Layout::rows([
+                Input::make('settings.payment_card_number')
+                    ->title('Номер карты для оплаты')
+                    ->mask('9999 9999 9999 9999')
+                    ->value(Setting::getValue('payment_card_number')),
+
+                Input::make('settings.payment_card_holder')
+                    ->title('Имя владельца карты')
+                    ->value(Setting::getValue('payment_card_holder')),
+            ])->title('💳 Реквизиты для оплаты'),
+
+            Layout::rows([
+                Input::make('settings.contact_phone')
+                    ->title('Контактный телефон')
+                    ->mask('+999 99 999-99-99')
+                    ->value(Setting::getValue('contact_phone')),
+
+                Input::make('settings.notification_days_before')
+                    ->type('number')
+                    ->title('За сколько дней уведомлять об истечении подписки')
+                    ->value(Setting::getValue('notification_days_before', 3)),
+            ])->title('📞 Контакты и уведомления'),
+
+            Layout::rows([
+                TextArea::make('settings.welcome_message')
+                    ->title('Приветственное сообщение')
+                    ->rows(3)
+                    ->value(Setting::getValue('welcome_message')),
+            ])->title('💬 Сообщения'),
+        ];
+    }
+
+    public function save(Request $request): void
+    {
+        $settings = $request->input('settings', []);
+
+        foreach ($settings as $key => $value) {
+            Setting::setValue($key, $value);
+        }
+
+        Toast::success('Настройки сохранены');
+    }
+}

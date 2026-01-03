@@ -2,18 +2,21 @@
 
 declare(strict_types=1);
 
-use App\Orchid\Screens\Examples\ExampleActionsScreen;
-use App\Orchid\Screens\Examples\ExampleCardsScreen;
-use App\Orchid\Screens\Examples\ExampleChartsScreen;
-use App\Orchid\Screens\Examples\ExampleFieldsAdvancedScreen;
-use App\Orchid\Screens\Examples\ExampleFieldsScreen;
-use App\Orchid\Screens\Examples\ExampleGridScreen;
-use App\Orchid\Screens\Examples\ExampleLayoutsScreen;
-use App\Orchid\Screens\Examples\ExampleScreen;
-use App\Orchid\Screens\Examples\ExampleTextEditorsScreen;
-use App\Orchid\Screens\PlatformScreen;
+use App\Http\Controllers\Admin\ExportController;
+use App\Orchid\Screens\Booking\BookingEditScreen;
+use App\Orchid\Screens\Booking\BookingListScreen;
+use App\Orchid\Screens\Booking\BookingPendingScreen;
+use App\Orchid\Screens\Client\ClientEditScreen;
+use App\Orchid\Screens\Client\ClientListScreen;
+use App\Orchid\Screens\Client\ClientPendingScreen;
+use App\Orchid\Screens\DashboardScreen;
+use App\Orchid\Screens\Locker\LockerListScreen;
+use App\Orchid\Screens\Payment\PaymentListScreen;
+use App\Orchid\Screens\Payment\PaymentPendingScreen;
 use App\Orchid\Screens\Role\RoleEditScreen;
 use App\Orchid\Screens\Role\RoleListScreen;
+use App\Orchid\Screens\SettingsScreen;
+use App\Orchid\Screens\Subscription\SubscriptionListScreen;
 use App\Orchid\Screens\User\UserEditScreen;
 use App\Orchid\Screens\User\UserListScreen;
 use App\Orchid\Screens\User\UserProfileScreen;
@@ -24,16 +27,53 @@ use Tabuna\Breadcrumbs\Trail;
 |--------------------------------------------------------------------------
 | Dashboard Routes
 |--------------------------------------------------------------------------
-|
-| Here is where you can register web routes for your application. These
-| routes are loaded by the RouteServiceProvider within a group which
-| contains the need "dashboard" middleware group. Now create something great!
-|
 */
 
-// Main
-Route::screen('/main', PlatformScreen::class)
+// Dashboard
+Route::screen('/dashboard', DashboardScreen::class)
+    ->name('platform.dashboard');
+
+Route::screen('/main', DashboardScreen::class)
     ->name('platform.main');
+
+// Clients
+Route::screen('/clients/pending', ClientPendingScreen::class)
+    ->name('platform.clients.pending');
+
+Route::screen('/clients/{client}/edit', ClientEditScreen::class)
+    ->name('platform.clients.edit');
+
+Route::screen('/clients', ClientListScreen::class)
+    ->name('platform.clients');
+
+// Bookings
+Route::screen('/bookings/pending', BookingPendingScreen::class)
+    ->name('platform.bookings.pending');
+
+Route::screen('/bookings/{booking}/edit', BookingEditScreen::class)
+    ->name('platform.bookings.edit');
+
+Route::screen('/bookings', BookingListScreen::class)
+    ->name('platform.bookings');
+
+// Payments
+Route::screen('/payments/pending', PaymentPendingScreen::class)
+    ->name('platform.payments.pending');
+
+Route::screen('/payments', PaymentListScreen::class)
+    ->name('platform.payments');
+
+// Lockers
+Route::screen('/lockers', LockerListScreen::class)
+    ->name('platform.lockers');
+
+// Subscriptions
+Route::screen('/subscriptions', SubscriptionListScreen::class)
+    ->name('platform.subscriptions');
+
+// Settings
+Route::screen('/settings', SettingsScreen::class)
+    ->name('platform.settings');
 
 // Platform > Profile
 Route::screen('profile', UserProfileScreen::class)
@@ -84,21 +124,18 @@ Route::screen('roles', RoleListScreen::class)
         ->parent('platform.index')
         ->push(__('Roles'), route('platform.systems.roles')));
 
-// Example...
-Route::screen('example', ExampleScreen::class)
-    ->name('platform.example')
-    ->breadcrumbs(fn (Trail $trail) => $trail
-        ->parent('platform.index')
-        ->push('Example Screen'));
+/*
+|--------------------------------------------------------------------------
+| Export Routes
+|--------------------------------------------------------------------------
+*/
 
-Route::screen('/examples/form/fields', ExampleFieldsScreen::class)->name('platform.example.fields');
-Route::screen('/examples/form/advanced', ExampleFieldsAdvancedScreen::class)->name('platform.example.advanced');
-Route::screen('/examples/form/editors', ExampleTextEditorsScreen::class)->name('platform.example.editors');
-Route::screen('/examples/form/actions', ExampleActionsScreen::class)->name('platform.example.actions');
-
-Route::screen('/examples/layouts', ExampleLayoutsScreen::class)->name('platform.example.layouts');
-Route::screen('/examples/grid', ExampleGridScreen::class)->name('platform.example.grid');
-Route::screen('/examples/charts', ExampleChartsScreen::class)->name('platform.example.charts');
-Route::screen('/examples/cards', ExampleCardsScreen::class)->name('platform.example.cards');
-
-// Route::screen('idea', Idea::class, 'platform.screens.idea');
+Route::prefix('export')->name('platform.export.')->group(function () {
+    Route::get('/clients', [ExportController::class, 'clients'])->name('clients');
+    Route::get('/bookings', [ExportController::class, 'bookings'])->name('bookings');
+    Route::get('/payments', [ExportController::class, 'payments'])->name('payments');
+    Route::get('/subscriptions', [ExportController::class, 'subscriptions'])->name('subscriptions');
+    Route::get('/lockers', [ExportController::class, 'lockers'])->name('lockers');
+    Route::get('/all', [ExportController::class, 'all'])->name('all');
+    Route::get('/report', [ExportController::class, 'report'])->name('report');
+});
