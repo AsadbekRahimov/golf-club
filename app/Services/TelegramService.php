@@ -83,7 +83,7 @@ class TelegramService
         if ($cardNumber) {
             $text .= "Реквизиты для перевода:\n" .
                 "Карта: `{$cardNumber}`\n";
-            
+
             if ($cardHolder) {
                 $text .= "Получатель: {$cardHolder}\n";
             }
@@ -150,8 +150,8 @@ class TelegramService
 
     public function notifyAdmins(string $message): bool
     {
-        $adminChatId = config('telegram.bots.golfclub.admin_chat_id');
-        
+        $adminChatId = config('telegram.admin_chat_id');
+
         if (!$adminChatId) {
             return false;
         }

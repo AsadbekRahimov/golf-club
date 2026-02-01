@@ -553,7 +553,7 @@ for ($i = 1; $i <= 50; $i++) {
 
 User::create([
     'name' => 'Admin',
-    'email' => 'admin@golfclub.local',
+    'email' => 'admin@admin.com',
     'password' => Hash::make('password'),
     'permissions' => [
         'platform.index' => true,

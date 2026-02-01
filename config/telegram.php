@@ -86,7 +86,7 @@ return [
     |
     */
     'commands' => [
-        HelpCommand::class,
+        // \Telegram\Bot\Commands\HelpCommand::class,
     ],
 
     /*

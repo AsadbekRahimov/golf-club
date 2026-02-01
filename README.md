@@ -1,59 +1,143 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Golf Club - Система управления подписками
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Система управления подписками гостей гольф-клуба с администраторской панелью (Laravel Orchid) и Telegram-ботом для клиентов.
 
-## About Laravel
+## Возможности
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- **Администраторская панель** - управление клиентами, подписками, платежами, шкафами
+- **Telegram-бот** - регистрация клиентов, бронирование услуг, отправка чеков
+- **Аналитический Dashboard** - графики, метрики, фильтрация по периодам
+- **Экспорт в Excel** - выгрузка данных на всех страницах
+- **Ежедневные отчёты** - автоматическая отправка в Telegram
+- **Система уведомлений** - уведомления клиентов о статусах
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Требования
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- PHP 8.2+
+- PostgreSQL 15+ или MySQL 8+
+- Composer
+- Node.js & NPM
 
-## Learning Laravel
+## Установка
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+### 1. Клонирование и установка зависимостей
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+```bash
+git clone <repository-url>
+cd golf-club
+composer install
+npm install
+```
 
-## Laravel Sponsors
+### 2. Настройка окружения
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+```bash
+cp .env.example .env
+php artisan key:generate
+```
 
-### Premium Partners
+Отредактируйте `.env` файл:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+```env
+# База данных
+DB_CONNECTION=pgsql
+DB_HOST=127.0.0.1
+DB_PORT=5432
+DB_DATABASE=golf_club
+DB_USERNAME=your_username
+DB_PASSWORD=your_password
 
-## Contributing
+# Telegram Bot
+TELEGRAM_BOT_TOKEN=ваш_токен_бота
+TELEGRAM_WEBHOOK_URL=https://ваш-домен.com/telegram/webhook
+TELEGRAM_WEBHOOK_SECRET=случайная_строка_для_безопасности
+TELEGRAM_ADMIN_CHAT_ID=ваш_telegram_id
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+### 3. Миграции и начальные данные
 
-## Code of Conduct
+```bash
+php artisan migrate
+php artisan db:seed
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+### 4. Сборка assets
 
-## Security Vulnerabilities
+```bash
+npm run build
+```
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+### 5. Настройка Telegram Webhook
 
-## License
+```bash
+php artisan telegram:set-webhook
+```
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+## Учетные данные администратора
+
+После выполнения seeders создается тестовый администратор:
+
+- **Email:** admin@admin.com
+- **Пароль:** password
+
+Панель администратора: `/admin`
+
+## Scheduler (Планировщик задач)
+
+Добавьте в crontab:
+
+```bash
+* * * * * cd /path-to-project && php artisan schedule:run >> /dev/null 2>&1
+```
+
+Автоматически выполняются:
+- `09:00` - Уведомления об истекающих подписках
+- `00:05` - Обработка истекших подписок
+- `23:50` - Ежедневный отчёт в Telegram
+
+## Artisan команды
+
+```bash
+# Проверка истекающих подписок
+php artisan subscriptions:check-expiring
+
+# Обработка истекших подписок
+php artisan subscriptions:process-expired
+
+# Ежедневный отчёт
+php artisan report:daily
+
+# Установка Telegram webhook
+php artisan telegram:set-webhook
+```
+
+## Структура проекта
+
+```
+app/
+├── Enums/          # Статусы (ClientStatus, BookingStatus, etc.)
+├── Models/         # Eloquent модели
+├── Services/       # Бизнес-логика
+├── Telegram/       # Telegram Bot
+│   ├── Handlers/   # Обработчики сообщений
+│   └── Keyboards/  # Клавиатуры бота
+└── Orchid/         # Админ-панель
+    ├── Screens/    # Экраны
+    └── Layouts/    # Layouts и Charts
+```
+
+## Документация
+
+Подробная документация в папке `/docs`:
+
+- `00-prd-overview.md` - Общий обзор проекта
+- `01-technical-architecture.md` - Техническая архитектура
+- `02-database-design.md` - Проектирование БД
+- `03-stage-1-database.md` - Миграции и модели
+- `04-stage-2-admin-panel.md` - Админ-панель
+- `05-stage-3-telegram-bot.md` - Telegram бот
+- И другие...
+
+## Лицензия
+
+MIT License
