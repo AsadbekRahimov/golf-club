@@ -86,7 +86,7 @@ class ClientEditScreen extends Screen
                     ->render(fn (Client $client) => $client->username 
                         ? "<a href='https://t.me/{$client->username}' target='_blank'>@{$client->username}</a>" 
                         : 'Не указан'),
-                Sight::make('full_name', 'ФИО'),
+                Sight::make('display_name', 'ФИО'),
                 Sight::make('created_at', 'Дата регистрации')
                     ->render(fn (Client $client) => $client->created_at->format('d.m.Y H:i')),
                 Sight::make('approved_at', 'Дата подтверждения')
@@ -96,8 +96,9 @@ class ClientEditScreen extends Screen
 
             Layout::rows([
                 Input::make('client.full_name')
-                    ->title('ФИО клиента')
-                    ->placeholder('Введите полное имя'),
+                    ->title('ФИО клиента (переопределить)')
+                    ->placeholder($this->client?->display_name ?? 'Введите полное имя')
+                    ->help('Оставьте пустым, чтобы использовать имя из Telegram'),
 
                 TextArea::make('client.notes')
                     ->title('Заметки')
