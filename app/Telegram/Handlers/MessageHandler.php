@@ -65,6 +65,8 @@ class MessageHandler
                 'telegram_id' => $from->getId(),
                 'telegram_chat_id' => $chatId,
                 'username' => $from->getUsername(),
+                'first_name' => $existingClient->first_name ?: ($contact->getFirstName() ?: $from->getFirstName()),
+                'last_name' => $existingClient->last_name ?: ($contact->getLastName() ?: $from->getLastName()),
             ]);
 
             $this->client = $existingClient;
@@ -81,8 +83,8 @@ class MessageHandler
             'phone_number' => $phoneNumber,
             'telegram_id' => $from->getId(),
             'telegram_chat_id' => $chatId,
-            'first_name' => $from->getFirstName(),
-            'last_name' => $from->getLastName(),
+            'first_name' => $contact->getFirstName() ?: $from->getFirstName(),
+            'last_name' => $contact->getLastName() ?: $from->getLastName(),
             'username' => $from->getUsername(),
             'status' => ClientStatus::PENDING,
         ]);
