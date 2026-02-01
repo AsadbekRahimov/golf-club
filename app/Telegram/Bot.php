@@ -52,7 +52,6 @@ class Bot
             return null;
         }
 
-        $telegramId = (string) $telegramId;
         $client = Client::where('telegram_id', $telegramId)->first();
         
         if (!$client) {

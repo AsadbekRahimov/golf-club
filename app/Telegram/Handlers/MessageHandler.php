@@ -62,8 +62,8 @@ class MessageHandler
 
         if ($existingClient) {
             $existingClient->update([
-                'telegram_id' => (string) $from->getId(),
-                'telegram_chat_id' => (string) $chatId,
+                'telegram_id' => $from->getId(),
+                'telegram_chat_id' => $chatId,
                 'username' => $from->getUsername(),
                 'first_name' => $existingClient->first_name ?: ($contact->getFirstName() ?: $from->getFirstName()),
                 'last_name' => $existingClient->last_name ?: ($contact->getLastName() ?: $from->getLastName()),
@@ -81,8 +81,8 @@ class MessageHandler
 
         $this->client = Client::create([
             'phone_number' => $phoneNumber,
-            'telegram_id' => (string) $from->getId(),
-            'telegram_chat_id' => (string) $chatId,
+            'telegram_id' => $from->getId(),
+            'telegram_chat_id' => $chatId,
             'first_name' => $contact->getFirstName() ?: $from->getFirstName(),
             'last_name' => $contact->getLastName() ?: $from->getLastName(),
             'username' => $from->getUsername(),
