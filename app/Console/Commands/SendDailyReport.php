@@ -43,7 +43,7 @@ class SendDailyReport extends Command
             $backupFile = $this->createDatabaseBackup();
 
             $this->info('📤 Отправка в Telegram...');
-            
+
             if ($this->option('test')) {
                 $this->warn('⚠️ Тестовый режим - отправка пропущена');
                 $this->showSummary($excelFiles, $backupFile);
@@ -82,7 +82,7 @@ class SendDailyReport extends Command
     protected function generateClientsReport(): string
     {
         $filePath = $this->reportsPath . '/clients_full_' . $this->reportDate . '.xlsx';
-        
+
         $clients = Client::with('approvedBy')->orderBy('created_at', 'desc')->get();
 
         (new FastExcel($clients))->export($filePath, function ($client) {
@@ -107,7 +107,7 @@ class SendDailyReport extends Command
     protected function generateSubscriptionsReport(): string
     {
         $filePath = $this->reportsPath . '/subscriptions_full_' . $this->reportDate . '.xlsx';
-        
+
         $subscriptions = Subscription::with(['client', 'locker'])->orderBy('created_at', 'desc')->get();
 
         (new FastExcel($subscriptions))->export($filePath, function ($sub) {
@@ -132,7 +132,7 @@ class SendDailyReport extends Command
     protected function generateLockersReport(): string
     {
         $filePath = $this->reportsPath . '/lockers_full_' . $this->reportDate . '.xlsx';
-        
+
         $lockers = Locker::with(['currentSubscription.client'])->orderBy('locker_number')->get();
 
         (new FastExcel($lockers))->export($filePath, function ($locker) {
@@ -152,7 +152,7 @@ class SendDailyReport extends Command
     protected function generateBookingsTodayReport(): string
     {
         $filePath = $this->reportsPath . '/bookings_today_' . $this->reportDate . '.xlsx';
-        
+
         $today = Carbon::today();
         $bookings = BookingRequest::with(['client', 'processedBy'])
             ->whereDate('created_at', $today)
@@ -179,7 +179,7 @@ class SendDailyReport extends Command
     protected function generatePaymentsTodayReport(): string
     {
         $filePath = $this->reportsPath . '/payments_today_' . $this->reportDate . '.xlsx';
-        
+
         $today = Carbon::today();
         $payments = Payment::with(['client', 'verifiedBy'])
             ->whereDate('created_at', $today)
@@ -214,9 +214,9 @@ class SendDailyReport extends Command
 
         $backupPath = config('backup.backup.destination.disks')[0] ?? 'local';
         $backupDir = storage_path('app/' . config('backup.backup.name', env('APP_NAME', 'laravel-backup')));
-        
+
         $latestBackup = $this->findLatestBackup($backupDir);
-        
+
         if (!$latestBackup) {
             $latestBackup = $this->findLatestBackupInStorage();
         }
@@ -271,7 +271,7 @@ class SendDailyReport extends Command
 
     protected function sendToTelegram(array $excelFiles, ?string $backupFile): void
     {
-        $chatId = config('telegram.bots.golfclub.admin_chat_id');
+        $chatId = config('telegram.admin_chat_id');
         $token = config('telegram.bots.golfclub.token');
 
         if (!$chatId || !$token) {
@@ -289,7 +289,7 @@ class SendDailyReport extends Command
 
         if ($backupFile && file_exists($backupFile)) {
             $fileSize = filesize($backupFile);
-            
+
             if ($fileSize > 50 * 1024 * 1024) {
                 $this->sendTelegramMessage($token, $chatId, "⚠️ Бэкап слишком большой для отправки в Telegram ({$this->formatBytes($fileSize)}). Сохранён локально: " . basename($backupFile));
             } else {
@@ -303,49 +303,49 @@ class SendDailyReport extends Command
     protected function generateTextSummary(): string
     {
         $today = Carbon::today();
-        
+
         $totalClients = Client::count();
         $approvedClients = Client::approved()->count();
         $pendingClients = Client::pending()->count();
-        
+
         $activeSubscriptions = Subscription::active()->count();
         $expiringSubscriptions = Subscription::expiring()->count();
-        
+
         $totalLockers = Locker::count();
         $availableLockers = Locker::available()->count();
         $occupiedLockers = Locker::occupied()->count();
-        
+
         $todayBookings = BookingRequest::whereDate('created_at', $today)->count();
         $todayPayments = Payment::whereDate('created_at', $today)->count();
         $todayRevenue = Payment::where('status', 'verified')
             ->whereDate('verified_at', $today)
             ->sum('amount');
-        
+
         $todayNewClients = Client::whereDate('created_at', $today)->count();
 
         return "📊 *ЕЖЕДНЕВНЫЙ ОТЧЁТ GOLF CLUB*\n" .
                "📅 {$this->reportDate}\n\n" .
-               
+
                "👥 *КЛИЕНТЫ*\n" .
                "├ Всего: {$totalClients}\n" .
                "├ Подтверждённых: {$approvedClients}\n" .
                "├ Ожидают: {$pendingClients}\n" .
                "└ Новых сегодня: {$todayNewClients}\n\n" .
-               
+
                "📋 *ПОДПИСКИ*\n" .
                "├ Активных: {$activeSubscriptions}\n" .
                "└ Истекает скоро: {$expiringSubscriptions}\n\n" .
-               
+
                "🗄 *ШКАФЫ*\n" .
                "├ Всего: {$totalLockers}\n" .
                "├ Свободно: {$availableLockers}\n" .
                "└ Занято: {$occupiedLockers}\n\n" .
-               
+
                "📈 *ЗА СЕГОДНЯ*\n" .
                "├ Бронирований: {$todayBookings}\n" .
                "├ Платежей: {$todayPayments}\n" .
                "└ Выручка: \${$todayRevenue}\n\n" .
-               
+
                "📎 Файлы отчётов прилагаются ниже ⬇️";
     }
 
@@ -398,12 +398,12 @@ class SendDailyReport extends Command
     {
         $this->newLine();
         $this->info('📋 Сгенерированные файлы:');
-        
+
         foreach ($excelFiles as $name => $path) {
             $size = file_exists($path) ? $this->formatBytes(filesize($path)) : 'N/A';
             $this->line("  - {$name}: {$path} ({$size})");
         }
-        
+
         if ($backupFile) {
             $size = file_exists($backupFile) ? $this->formatBytes(filesize($backupFile)) : 'N/A';
             $this->line("  - backup: {$backupFile} ({$size})");
