@@ -203,7 +203,7 @@ class SendDailyReport extends Command
         return $filePath;
     }
 
-    protected function createDatabaseBackup(): string
+    protected function createDatabaseBackup(): ?string
     {
         Artisan::call('backup:run', [
             '--only-db' => true,
