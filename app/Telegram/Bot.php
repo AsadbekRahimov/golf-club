@@ -27,7 +27,7 @@ class Bot
         
         Log::channel('single')->debug('Telegram update', $data);
 
-        $this->client = $this->identifyClient();
+        $this->client = $this->identifyClient($data);
 
         if ($this->update->isType('message')) {
             $this->handleMessage();
@@ -36,20 +36,15 @@ class Bot
         }
     }
 
-    protected function identifyClient(): ?Client
+    protected function identifyClient(array $rawData): ?Client
     {
         $telegramId = null;
         
-        if ($this->update->getMessage()) {
-            $telegramId = $this->update->getMessage()->getFrom()->getId();
-        } elseif ($this->update->getCallbackQuery()) {
-            // Access raw data to avoid SDK issues
-            $rawUpdate = $this->update->getRawData();
-            $telegramId = $rawUpdate['callback_query']['from']['id'] ?? null;
-            
-            if (!$telegramId) {
-                $telegramId = $this->update->getCallbackQuery()->getFrom()->getId();
-            }
+        // Get telegram_id from raw data to avoid SDK parsing issues
+        if (isset($rawData['message']['from']['id'])) {
+            $telegramId = $rawData['message']['from']['id'];
+        } elseif (isset($rawData['callback_query']['from']['id'])) {
+            $telegramId = $rawData['callback_query']['from']['id'];
         }
 
         if (!$telegramId) {
