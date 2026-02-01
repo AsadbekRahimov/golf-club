@@ -38,21 +38,31 @@ class Bot
 
     protected function identifyClient(): ?Client
     {
-        $from = $this->update->getMessage()?->getFrom() 
-            ?? $this->update->getCallbackQuery()?->getFrom();
+        $telegramId = null;
+        
+        if ($this->update->getMessage()) {
+            $telegramId = $this->update->getMessage()->getFrom()->getId();
+        } elseif ($this->update->getCallbackQuery()) {
+            // Access raw data to avoid SDK issues
+            $rawUpdate = $this->update->getRawData();
+            $telegramId = $rawUpdate['callback_query']['from']['id'] ?? null;
+            
+            if (!$telegramId) {
+                $telegramId = $this->update->getCallbackQuery()->getFrom()->getId();
+            }
+        }
 
-        if (!$from) {
-            Log::channel('single')->warning('No from user found in update');
+        if (!$telegramId) {
+            Log::channel('single')->warning('No telegram_id found in update');
             return null;
         }
 
-        $telegramId = (string) $from->getId();
+        $telegramId = (string) $telegramId;
         $client = Client::where('telegram_id', $telegramId)->first();
         
         if (!$client) {
             Log::channel('single')->warning('Client not found', [
                 'telegram_id' => $telegramId,
-                'username' => $from->getUsername(),
             ]);
         }
 
