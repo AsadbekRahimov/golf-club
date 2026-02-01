@@ -27,7 +27,7 @@ class SettingsScreen extends Screen
     public function query(): iterable
     {
         return [
-            'settings' => Setting::all()->keyBy('key'),
+            'settings' => Setting::all()->pluck('value', 'key')->toArray(),
         ];
     }
 
