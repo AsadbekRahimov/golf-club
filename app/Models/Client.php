@@ -39,9 +39,9 @@ class Client extends Model
     ];
 
     protected $allowedFilters = [
-        'phone_number',
-        'status',
-        'created_at',
+        'phone_number' => \Orchid\Filters\Types\Like::class,
+        'status' => \Orchid\Filters\Types\Where::class,
+        'created_at' => \Orchid\Filters\Types\WhereDate::class,
     ];
 
     protected $allowedSorts = [
