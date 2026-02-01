@@ -199,6 +199,20 @@ class CallbackHandler
 
     protected function confirmBooking(array $params): void
     {
+        if (!$this->client) {
+            \Log::channel('single')->error('Client is null in confirmBooking', [
+                'callback_data' => $this->update->getCallbackQuery()->getData(),
+                'from_id' => $this->update->getCallbackQuery()->getFrom()->getId(),
+            ]);
+            
+            $this->telegram->sendMessage([
+                'chat_id' => $this->update->getCallbackQuery()->getMessage()->getChat()->getId(),
+                'text' => "❌ *Ошибка*\n\nПроизошла ошибка при обработке запроса.\n\nПожалуйста, используйте /start для повторной авторизации.",
+                'parse_mode' => 'Markdown',
+            ]);
+            return;
+        }
+
         $service = $params[0] ?? '';
         $option = $params[1] ?? '';
 

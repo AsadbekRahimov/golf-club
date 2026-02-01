@@ -42,10 +42,21 @@ class Bot
             ?? $this->update->getCallbackQuery()?->getFrom();
 
         if (!$from) {
+            Log::channel('single')->warning('No from user found in update');
             return null;
         }
 
-        return Client::where('telegram_id', $from->getId())->first();
+        $telegramId = (string) $from->getId();
+        $client = Client::where('telegram_id', $telegramId)->first();
+        
+        if (!$client) {
+            Log::channel('single')->warning('Client not found', [
+                'telegram_id' => $telegramId,
+                'username' => $from->getUsername(),
+            ]);
+        }
+
+        return $client;
     }
 
     protected function handleMessage(): void

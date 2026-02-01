@@ -31,8 +31,8 @@ class Client extends Model
     ];
 
     protected $casts = [
-        'telegram_id' => 'integer',
-        'telegram_chat_id' => 'integer',
+        'telegram_id' => 'string',
+        'telegram_chat_id' => 'string',
         'status' => ClientStatus::class,
         'approved_at' => 'datetime',
         'rejected_at' => 'datetime',
