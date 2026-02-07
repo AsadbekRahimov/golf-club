@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\ClientStatus;
+use App\Enums\SubscriptionStatus;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -96,7 +97,7 @@ class Client extends Model
 
     public function activeSubscriptions(): HasMany
     {
-        return $this->subscriptions()->where('status', 'active');
+        return $this->subscriptions()->where('status', SubscriptionStatus::ACTIVE);
     }
 
     public function bookingRequests(): HasMany

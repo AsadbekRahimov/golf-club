@@ -4,7 +4,9 @@ namespace App\Services;
 
 use App\Enums\BookingStatus;
 use App\Enums\GameSubscriptionType;
+use App\Enums\PaymentStatus;
 use App\Enums\ServiceType;
+use App\Enums\SubscriptionStatus;
 use App\Enums\SubscriptionType;
 use App\Models\BookingRequest;
 use App\Models\Client;
@@ -102,7 +104,7 @@ class BookingService
             'booking_request_id' => $booking->id,
             'client_id' => $booking->client_id,
             'amount' => $booking->total_price,
-            'status' => 'pending',
+            'status' => PaymentStatus::PENDING,
         ]);
 
         $this->telegramService->notifyPaymentRequired($booking->client, $booking->total_price);
@@ -158,7 +160,7 @@ class BookingService
                 'start_date' => now(),
                 'end_date' => $endDate,
                 'price' => $price,
-                'status' => 'active',
+                'status' => SubscriptionStatus::ACTIVE,
             ]);
         }
 
@@ -177,7 +179,7 @@ class BookingService
                     'start_date' => now(),
                     'end_date' => now()->addMonths($months),
                     'price' => Setting::getLockerMonthlyPrice() * $months,
-                    'status' => 'active',
+                    'status' => SubscriptionStatus::ACTIVE,
                 ]);
             }
         }

@@ -26,8 +26,8 @@ class Locker extends Model
     ];
 
     protected $allowedFilters = [
-        'locker_number',
-        'status',
+        'locker_number' => \Orchid\Filters\Types\Like::class,
+        'status' => \Orchid\Filters\Types\Where::class,
     ];
 
     protected $allowedSorts = [

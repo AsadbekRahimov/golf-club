@@ -34,8 +34,8 @@ class Payment extends Model
     ];
 
     protected $allowedFilters = [
-        'status',
-        'created_at',
+        'status' => \Orchid\Filters\Types\Where::class,
+        'created_at' => \Orchid\Filters\Types\WhereDate::class,
     ];
 
     protected $allowedSorts = [
