@@ -22,6 +22,8 @@ class BookingRequest extends Model
         'game_subscription_type',
         'locker_duration_months',
         'total_price',
+        'preferred_date',
+        'preferred_time',
         'status',
         'admin_notes',
         'processed_by',
@@ -34,6 +36,7 @@ class BookingRequest extends Model
         'status' => BookingStatus::class,
         'total_price' => 'decimal:2',
         'locker_duration_months' => 'integer',
+        'preferred_date' => 'date',
         'processed_at' => 'datetime',
     ];
 

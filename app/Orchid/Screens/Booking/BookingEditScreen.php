@@ -86,6 +86,12 @@ class BookingEditScreen extends Screen
                         : '-'),
                 Sight::make('total_price', 'Сумма')
                     ->render(fn (BookingRequest $b) => '$' . number_format($b->total_price, 2)),
+                Sight::make('preferred_date', 'Дата посещения')
+                    ->render(fn (BookingRequest $b) => $b->preferred_date
+                        ? $b->preferred_date->format('d.m.Y')
+                        : '-'),
+                Sight::make('preferred_time', 'Время посещения')
+                    ->render(fn (BookingRequest $b) => $b->preferred_time ?? '-'),
                 Sight::make('created_at', 'Дата создания')
                     ->render(fn (BookingRequest $b) => $b->created_at->format('d.m.Y H:i')),
                 Sight::make('processedBy.name', 'Обработал'),

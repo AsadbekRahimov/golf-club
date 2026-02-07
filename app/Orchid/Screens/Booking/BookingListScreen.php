@@ -53,8 +53,13 @@ class BookingListScreen extends Screen
                     ->sort()
                     ->render(fn (BookingRequest $booking) => '$' . number_format($booking->total_price, 2)),
 
+                TD::make('preferred_date', 'Дата визита')
+                    ->render(fn (BookingRequest $booking) => $booking->preferred_date
+                        ? $booking->preferred_date->format('d.m.Y') . ($booking->preferred_time ? " {$booking->preferred_time}" : '')
+                        : '-'),
+
                 TD::make('status', 'Статус')
-                    ->render(fn (BookingRequest $booking) => 
+                    ->render(fn (BookingRequest $booking) =>
                         "<span class='badge bg-{$booking->status->color()}'>{$booking->status->label()}</span>"),
 
                 TD::make('created_at', 'Дата')
