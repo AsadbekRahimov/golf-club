@@ -3,6 +3,7 @@
 namespace App\Orchid\Screens;
 
 use App\Enums\BookingStatus;
+use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionType;
 use App\Models\BookingRequest;
 use App\Models\Client;
@@ -262,10 +263,10 @@ class DashboardScreen extends Screen
         $newBookings = BookingRequest::whereBetween('created_at', [$start, $end])->count();
         $prevBookings = BookingRequest::whereBetween('created_at', [$prevStart, $prevEnd])->count();
 
-        $revenue = Payment::where('status', 'verified')
+        $revenue = Payment::where('status', PaymentStatus::VERIFIED)
             ->whereBetween('verified_at', [$start, $end])
             ->sum('amount');
-        $prevRevenue = Payment::where('status', 'verified')
+        $prevRevenue = Payment::where('status', PaymentStatus::VERIFIED)
             ->whereBetween('verified_at', [$prevStart, $prevEnd])
             ->sum('amount');
 
@@ -407,7 +408,7 @@ class DashboardScreen extends Screen
                 default => $current->format('d.m'),
             };
 
-            $data[$label] = (float) Payment::where('status', 'verified')
+            $data[$label] = (float) Payment::where('status', PaymentStatus::VERIFIED)
                 ->whereBetween('verified_at', [$current, min($periodEnd, $end)])
                 ->sum('amount');
 
@@ -441,7 +442,7 @@ class DashboardScreen extends Screen
     protected function getTopStats(Carbon $start, Carbon $end): array
     {
         $totalClients = Client::approved()->count();
-        $totalRevenue = Payment::where('status', 'verified')
+        $totalRevenue = Payment::where('status', PaymentStatus::VERIFIED)
             ->whereBetween('verified_at', [$start, $end])
             ->sum('amount');
         

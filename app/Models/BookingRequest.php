@@ -38,9 +38,9 @@ class BookingRequest extends Model
     ];
 
     protected $allowedFilters = [
-        'status',
-        'service_type',
-        'created_at',
+        'status' => \Orchid\Filters\Types\Where::class,
+        'service_type' => \Orchid\Filters\Types\Where::class,
+        'created_at' => \Orchid\Filters\Types\WhereDate::class,
     ];
 
     protected $allowedSorts = [

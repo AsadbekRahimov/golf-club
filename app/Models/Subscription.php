@@ -38,9 +38,9 @@ class Subscription extends Model
     ];
 
     protected $allowedFilters = [
-        'subscription_type',
-        'status',
-        'client_id',
+        'subscription_type' => \Orchid\Filters\Types\Where::class,
+        'status' => \Orchid\Filters\Types\Where::class,
+        'client_id' => \Orchid\Filters\Types\Where::class,
     ];
 
     protected $allowedSorts = [

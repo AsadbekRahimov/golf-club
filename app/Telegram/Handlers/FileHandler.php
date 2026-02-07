@@ -3,9 +3,11 @@
 namespace App\Telegram\Handlers;
 
 use App\Enums\BookingStatus;
+use App\Enums\PaymentStatus;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Payment;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Telegram\Bot\Api;
 use Telegram\Bot\Objects\Update;
@@ -42,10 +44,13 @@ class FileHandler
 
         if ($message->has('photo')) {
             $photos = $message->getPhoto();
-            $photo = end($photos);
-            $fileId = $photo['file_id'];
-            $fileName = 'receipt.jpg';
-            $fileType = 'image/jpeg';
+            $photo = is_array($photos) ? end($photos) : $photos->last();
+
+            if ($photo) {
+                $fileId = $photo['file_id'];
+                $fileName = 'receipt.jpg';
+                $fileType = 'image/jpeg';
+            }
         } elseif ($message->has('document')) {
             $document = $message->getDocument();
             $fileId = $document->getFileId();
@@ -58,29 +63,39 @@ class FileHandler
             return;
         }
 
-        $filePath = $this->downloadFile($fileId, $fileName);
+        try {
+            $filePath = $this->downloadFile($fileId, $fileName);
 
-        if (!$filePath) {
-            $this->sendError('Ошибка при загрузке файла.');
-            return;
-        }
+            if (!$filePath) {
+                $this->sendError('Ошибка при загрузке файла.');
+                return;
+            }
 
-        Payment::updateOrCreate(
-            ['booking_request_id' => $booking->id],
-            [
+            Payment::updateOrCreate(
+                ['booking_request_id' => $booking->id],
+                [
+                    'client_id' => $this->client->id,
+                    'amount' => $booking->total_price,
+                    'receipt_file_path' => $filePath,
+                    'receipt_file_name' => $fileName,
+                    'receipt_file_type' => $fileType,
+                    'status' => PaymentStatus::PENDING,
+                ]
+            );
+
+            $booking->markPaymentSent();
+
+            $this->sendSuccess($booking);
+            $this->notifyAdmins($booking);
+        } catch (\Exception $e) {
+            Log::error('FileHandler: failed to process receipt', [
                 'client_id' => $this->client->id,
-                'amount' => $booking->total_price,
-                'receipt_file_path' => $filePath,
-                'receipt_file_name' => $fileName,
-                'receipt_file_type' => $fileType,
-                'status' => 'pending',
-            ]
-        );
-
-        $booking->markPaymentSent();
-
-        $this->sendSuccess($booking);
-        $this->notifyAdmins($booking);
+                'booking_id' => $booking->id,
+                'error' => $e->getMessage(),
+            ]);
+            report($e);
+            $this->sendError('Произошла ошибка при обработке файла. Попробуйте позже.');
+        }
     }
 
     protected function downloadFile(string $fileId, string $fileName): ?string
@@ -89,20 +104,29 @@ class FileHandler
             $file = $this->telegram->getFile(['file_id' => $fileId]);
             $filePath = $file->getFilePath();
 
-            $url = "https://api.telegram.org/file/bot" . 
-                   config('telegram.bots.golfclub.token') . 
+            $url = "https://api.telegram.org/file/bot" .
+                   config('telegram.bots.golfclub.token') .
                    "/{$filePath}";
 
             $contents = file_get_contents($url);
-            
+
+            if ($contents === false) {
+                Log::error('FileHandler: file_get_contents failed', ['url' => $url]);
+                return null;
+            }
+
             $extension = pathinfo($fileName, PATHINFO_EXTENSION) ?: 'jpg';
-            $storagePath = "receipts/{$this->client->id}/" . 
+            $storagePath = "receipts/{$this->client->id}/" .
                           time() . '_' . uniqid() . '.' . $extension;
 
             Storage::disk('public')->put($storagePath, $contents);
 
             return $storagePath;
         } catch (\Exception $e) {
+            Log::error('FileHandler: download failed', [
+                'file_id' => $fileId,
+                'error' => $e->getMessage(),
+            ]);
             report($e);
             return null;
         }
@@ -130,7 +154,7 @@ class FileHandler
     protected function notifyAdmins(BookingRequest $booking): void
     {
         $adminChatId = config('telegram.admin_chat_id');
-        
+
         if (!$adminChatId) {
             return;
         }
