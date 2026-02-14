@@ -79,12 +79,12 @@ class ClientEditScreen extends Screen
         return [
             Layout::legend('client', [
                 Sight::make('status', 'Статус')
-                    ->render(fn (Client $client) => 
+                    ->render(fn (Client $client) =>
                         "<span class='badge bg-{$client->status->color()}'>{$client->status->label()}</span>"),
                 Sight::make('phone_number', 'Телефон'),
                 Sight::make('telegram_link', 'Telegram')
-                    ->render(fn (Client $client) => $client->username 
-                        ? "<a href='https://t.me/{$client->username}' target='_blank'>@{$client->username}</a>" 
+                    ->render(fn (Client $client) => $client->username
+                        ? "<a href='https://t.me/{$client->username}' target='_blank'>@{$client->username}</a>"
                         : 'Не указан'),
                 Sight::make('display_name', 'ФИО'),
                 Sight::make('created_at', 'Дата регистрации')

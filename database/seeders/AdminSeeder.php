@@ -26,6 +26,7 @@ class AdminSeeder extends Seeder
                     'platform.lockers' => true,
                     'platform.subscriptions' => true,
                     'platform.settings' => true,
+                    'platform.attachments' => true,
                 ],
             ]
         );
