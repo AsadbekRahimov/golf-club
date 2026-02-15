@@ -105,6 +105,12 @@ class ClientEditScreen extends Screen
                     ->rows(3)
                     ->placeholder('Заметки о клиенте'),
 
+                TextArea::make('rejection_reason')
+                    ->title('Причина отклонения / блокировки')
+                    ->rows(2)
+                    ->placeholder('Укажите причину отклонения или блокировки')
+                    ->canSee($this->client?->isPending() || $this->client?->isApproved()),
+
                 Button::make('Сохранить')
                     ->icon('bs.check')
                     ->type(Color::PRIMARY)
@@ -140,16 +146,18 @@ class ClientEditScreen extends Screen
         Toast::success('Клиент подтвержден, уведомление отправлено');
     }
 
-    public function reject(Client $client, ClientService $clientService): void
+    public function reject(Client $client, Request $request, ClientService $clientService): void
     {
-        $clientService->reject($client, 'Отклонено администратором');
+        $reason = $request->input('rejection_reason') ?: 'Отклонено администратором';
+        $clientService->reject($client, $reason);
 
         Toast::warning('Клиент отклонен, уведомление отправлено');
     }
 
-    public function block(Client $client, ClientService $clientService): void
+    public function block(Client $client, Request $request, ClientService $clientService): void
     {
-        $clientService->block($client, 'Заблокирован администратором');
+        $reason = $request->input('rejection_reason') ?: 'Заблокирован администратором';
+        $clientService->block($client, $reason);
 
         Toast::warning('Клиент заблокирован');
     }

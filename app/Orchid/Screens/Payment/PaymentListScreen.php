@@ -3,6 +3,7 @@
 namespace App\Orchid\Screens\Payment;
 
 use App\Models\Payment;
+use App\Orchid\Filters\PaymentStatusFilter;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
 use Orchid\Screen\TD;
@@ -39,6 +40,8 @@ class PaymentListScreen extends Screen
     public function layout(): iterable
     {
         return [
+            Layout::selection([PaymentStatusFilter::class]),
+
             Layout::table('payments', [
                 TD::make('id', 'ID')->sort(),
 

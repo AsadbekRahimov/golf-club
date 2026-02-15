@@ -44,60 +44,69 @@ class SettingsScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Layout::rows([
-                Input::make('settings.game_once_price')
-                    ->type('number')
-                    ->step('0.01')
-                    ->title('Стоимость единоразовой игры ($)')
-                    ->value(Setting::getValue('game_once_price', 50)),
+            Layout::tabs([
+                'Тарифы' => Layout::rows([
+                    Input::make('settings.game_once_price')
+                        ->type('number')
+                        ->step('0.01')
+                        ->title('Стоимость единоразовой игры ($)')
+                        ->value(Setting::getValue('game_once_price', 50)),
 
-                Input::make('settings.game_monthly_price')
-                    ->type('number')
-                    ->step('0.01')
-                    ->title('Стоимость месячной подписки ($)')
-                    ->value(Setting::getValue('game_monthly_price', 200)),
+                    Input::make('settings.game_monthly_price')
+                        ->type('number')
+                        ->step('0.01')
+                        ->title('Стоимость месячной подписки ($)')
+                        ->value(Setting::getValue('game_monthly_price', 200)),
 
-                Input::make('settings.locker_monthly_price')
-                    ->type('number')
-                    ->step('0.01')
-                    ->title('Стоимость аренды шкафа в месяц ($)')
-                    ->value(Setting::getValue('locker_monthly_price', 10)),
-            ])->title('💰 Тарифы'),
+                    Input::make('settings.locker_monthly_price')
+                        ->type('number')
+                        ->step('0.01')
+                        ->title('Стоимость аренды шкафа в месяц ($)')
+                        ->value(Setting::getValue('locker_monthly_price', 10)),
+                ]),
 
-            Layout::rows([
-                Input::make('settings.payment_card_number')
-                    ->title('Номер карты для оплаты')
-                    ->mask('9999 9999 9999 9999')
-                    ->value(Setting::getValue('payment_card_number')),
+                'Реквизиты' => Layout::rows([
+                    Input::make('settings.payment_card_number')
+                        ->title('Номер карты для оплаты')
+                        ->mask('9999 9999 9999 9999')
+                        ->value(Setting::getValue('payment_card_number')),
 
-                Input::make('settings.payment_card_holder')
-                    ->title('Имя владельца карты')
-                    ->value(Setting::getValue('payment_card_holder')),
-            ])->title('💳 Реквизиты для оплаты'),
+                    Input::make('settings.payment_card_holder')
+                        ->title('Имя владельца карты')
+                        ->value(Setting::getValue('payment_card_holder')),
+                ]),
 
-            Layout::rows([
-                Input::make('settings.contact_phone')
-                    ->title('Контактный телефон')
-                    ->mask('+999 99 999-99-99')
-                    ->value(Setting::getValue('contact_phone')),
+                'Контакты' => Layout::rows([
+                    Input::make('settings.contact_phone')
+                        ->title('Контактный телефон')
+                        ->mask('+999 99 999-99-99')
+                        ->value(Setting::getValue('contact_phone')),
+                ]),
 
-                Input::make('settings.notification_days_before')
-                    ->type('number')
-                    ->title('За сколько дней уведомлять об истечении подписки')
-                    ->value(Setting::getValue('notification_days_before', 3)),
-            ])->title('📞 Контакты и уведомления'),
+                'Уведомления' => Layout::rows([
+                    Input::make('settings.notification_days_before')
+                        ->type('number')
+                        ->title('За сколько дней уведомлять об истечении подписки')
+                        ->value(Setting::getValue('notification_days_before', 3)),
 
-            Layout::rows([
-                TextArea::make('settings.welcome_message')
-                    ->title('Приветственное сообщение')
-                    ->rows(3)
-                    ->value(Setting::getValue('welcome_message')),
-            ])->title('💬 Сообщения'),
+                    TextArea::make('settings.welcome_message')
+                        ->title('Приветственное сообщение')
+                        ->rows(3)
+                        ->value(Setting::getValue('welcome_message')),
+                ]),
+            ]),
         ];
     }
 
     public function save(Request $request): void
     {
+        $request->validate([
+            'settings.game_once_price' => 'nullable|numeric|min:0',
+            'settings.game_monthly_price' => 'nullable|numeric|min:0',
+            'settings.locker_monthly_price' => 'nullable|numeric|min:0',
+            'settings.notification_days_before' => 'nullable|integer|min:1|max:30',
+        ]);
+
         $settings = $request->input('settings', []);
 
         foreach ($settings as $key => $value) {

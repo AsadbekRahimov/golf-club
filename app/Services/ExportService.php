@@ -8,6 +8,7 @@ use App\Models\Locker;
 use App\Models\Payment;
 use App\Models\Subscription;
 use Carbon\Carbon;
+use App\Enums\PaymentStatus;
 use Rap2hpoutre\FastExcel\FastExcel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -220,7 +221,7 @@ class ExportService
         $data->push(['Активных подписок', Subscription::active()->count()]);
         $data->push(['Бронирований за период', BookingRequest::whereBetween('created_at', [$startDate, $endDate])->count()]);
         
-        $revenue = Payment::where('status', 'verified')
+        $revenue = Payment::where('status', PaymentStatus::VERIFIED)
             ->whereBetween('verified_at', [$startDate, $endDate])
             ->sum('amount');
         $data->push(['Выручка за период ($)', number_format($revenue, 2)]);
@@ -267,7 +268,7 @@ class ExportService
         $data->push(['ID', 'Клиент', 'Сумма', 'Статус', 'Дата проверки']);
 
         Payment::with('client')
-            ->where('status', 'verified')
+            ->where('status', PaymentStatus::VERIFIED)
             ->whereBetween('verified_at', [$startDate, $endDate])
             ->orderBy('verified_at', 'desc')
             ->each(function ($payment) use ($data) {

@@ -55,6 +55,12 @@ class BookingEditScreen extends Screen
                 ->method('verifyPayment')
                 ->canSee($this->booking?->status === BookingStatus::PAYMENT_SENT && $this->booking?->payment),
 
+            Button::make('Отклонить оплату')
+                ->icon('bs.x-circle')
+                ->type(Color::WARNING)
+                ->method('rejectPayment')
+                ->canSee($this->booking?->status === BookingStatus::PAYMENT_SENT && $this->booking?->payment),
+
             Button::make('Отклонить')
                 ->icon('bs.x-circle')
                 ->type(Color::DANGER)
@@ -125,6 +131,14 @@ class BookingEditScreen extends Screen
         $bookingService->verifyPayment($booking->payment, auth()->user());
 
         Toast::success('Оплата подтверждена, подписки активированы');
+    }
+
+    public function rejectPayment(BookingRequest $booking, Request $request, BookingService $bookingService): void
+    {
+        $reason = $request->input('admin_notes') ?: 'Оплата отклонена администратором';
+        $bookingService->rejectPayment($booking->payment, auth()->user(), $reason);
+
+        Toast::warning('Оплата отклонена, уведомление отправлено клиенту');
     }
 
     public function reject(BookingRequest $booking, Request $request, BookingService $bookingService): void

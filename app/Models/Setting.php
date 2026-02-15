@@ -72,12 +72,12 @@ class Setting extends Model
 
     public static function getGameOncePrice(): float
     {
-        return (float) self::getValue('game_once_price', 0);
+        return (float) self::getValue('game_once_price', 50);
     }
 
     public static function getGameMonthlyPrice(): float
     {
-        return (float) self::getValue('game_monthly_price', 0);
+        return (float) self::getValue('game_monthly_price', 200);
     }
 
     public static function getLockerMonthlyPrice(): float

@@ -4,6 +4,7 @@ namespace App\Orchid\Screens\Client;
 
 use App\Enums\ClientStatus;
 use App\Models\Client;
+use App\Orchid\Filters\ClientStatusFilter;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
 use Orchid\Screen\TD;
@@ -39,6 +40,8 @@ class ClientListScreen extends Screen
     public function layout(): iterable
     {
         return [
+            Layout::selection([ClientStatusFilter::class]),
+
             Layout::table('clients', [
                 TD::make('id', 'ID')
                     ->sort(),

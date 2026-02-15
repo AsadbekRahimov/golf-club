@@ -4,6 +4,7 @@ namespace App\Orchid\Screens\Locker;
 
 use App\Enums\LockerStatus;
 use App\Models\Locker;
+use App\Models\Subscription;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
@@ -79,9 +80,39 @@ class LockerListScreen extends Screen
                 TD::make('end_date', 'Аренда до')
                     ->render(fn (Locker $l) => $l->activeSubscription?->end_date?->format('d.m.Y') ?? '-'),
 
+                TD::make('days_remaining', 'Осталось дней')
+                    ->render(function (Locker $l) {
+                        $days = $l->activeSubscription?->days_remaining;
+                        if ($days === null) return '-';
+                        $color = $days <= 3 ? 'danger' : ($days <= 7 ? 'warning' : 'success');
+                        return "<span class='badge bg-{$color}'>{$days}</span>";
+                    }),
+
                 TD::make('description', 'Описание'),
+
+                TD::make('action', '')
+                    ->render(fn (Locker $l) => $l->status === LockerStatus::OCCUPIED
+                        ? Button::make('Освободить')
+                            ->class('btn btn-sm btn-outline-danger')
+                            ->method('release', ['locker' => $l->id])
+                            ->confirm('Вы уверены? Связанная подписка будет отменена.')
+                        : ''),
             ]),
         ];
+    }
+
+    public function release(Request $request): void
+    {
+        $locker = Locker::findOrFail($request->input('locker'));
+
+        $activeSubscription = $locker->activeSubscription;
+        if ($activeSubscription) {
+            $activeSubscription->cancel(auth()->user(), 'Шкаф освобождён вручную администратором');
+        }
+
+        $locker->release();
+
+        Toast::warning("Шкаф #{$locker->locker_number} освобождён");
     }
 
     public function addLockers(Request $request): void

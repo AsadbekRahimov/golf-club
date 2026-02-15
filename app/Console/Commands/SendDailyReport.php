@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Enums\PaymentStatus;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
@@ -317,7 +318,7 @@ class SendDailyReport extends Command
 
         $todayBookings = BookingRequest::whereDate('created_at', $today)->count();
         $todayPayments = Payment::whereDate('created_at', $today)->count();
-        $todayRevenue = Payment::where('status', 'verified')
+        $todayRevenue = Payment::where('status', PaymentStatus::VERIFIED)
             ->whereDate('verified_at', $today)
             ->sum('amount');
 

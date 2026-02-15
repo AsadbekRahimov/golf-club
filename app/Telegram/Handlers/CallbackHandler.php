@@ -47,7 +47,8 @@ class CallbackHandler
             'service' => $this->selectService($params[1] ?? ''),
             'game_type' => $this->selectGameType($params[1] ?? ''),
             'locker_months' => $this->selectLockerMonths($params[1] ?? ''),
-            'confirm' => $this->confirmBooking($params),
+            'confirm' => $this->confirmBooking(array_slice($params, 1)),
+            'both_confirm' => $this->confirmBothBooking($params[1] ?? ''),
             'cancel' => $this->cancelBooking(),
             default => null,
         };
@@ -197,19 +198,41 @@ class CallbackHandler
         );
     }
 
+    protected function confirmBothBooking(string $gameType): void
+    {
+        if (!$this->client) {
+            $this->sendAuthError();
+            return;
+        }
+
+        $gamePrice = $gameType === 'once' ? Setting::getGameOncePrice() : Setting::getGameMonthlyPrice();
+        $lockerPrice = Setting::getLockerMonthlyPrice();
+        $totalPrice = $gamePrice + $lockerPrice;
+        $gameTypeEnum = $gameType === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY;
+
+        $keyboard = [
+            'inline_keyboard' => [
+                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:both:{$gameType}"]],
+                [['text' => '❌ Отмена', 'callback_data' => 'booking:cancel']],
+            ],
+        ];
+
+        $text = "📦 *Подтверждение бронирования*\n\n" .
+            "Услуга: Комплексный пакет\n" .
+            "Игра: {$gameTypeEnum->label()} подписка\n" .
+            "Шкаф: 1 мес.\n" .
+            "Стоимость: *\${$totalPrice}*\n" .
+            "  - Игра: \${$gamePrice}\n" .
+            "  - Шкаф: \${$lockerPrice}\n\n" .
+            "Подтвердить бронирование?";
+
+        $this->editMessage($text, $keyboard);
+    }
+
     protected function confirmBooking(array $params): void
     {
         if (!$this->client) {
-            \Log::channel('single')->error('Client is null in confirmBooking', [
-                'callback_data' => $this->update->getCallbackQuery()->getData(),
-                'from_id' => $this->update->getCallbackQuery()->getFrom()->getId(),
-            ]);
-            
-            $this->telegram->sendMessage([
-                'chat_id' => $this->update->getCallbackQuery()->getMessage()->getChat()->getId(),
-                'text' => "❌ *Ошибка*\n\nПроизошла ошибка при обработке запроса.\n\nПожалуйста, используйте /start для повторной авторизации.",
-                'parse_mode' => 'Markdown',
-            ]);
+            $this->sendAuthError();
             return;
         }
 
@@ -253,6 +276,12 @@ class CallbackHandler
                 'locker_months' => (int) $option,
                 'price' => Setting::getLockerMonthlyPrice() * (int) $option,
             ],
+            'both' => [
+                'service_type' => ServiceType::BOTH,
+                'game_type' => $option === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY,
+                'locker_months' => 1,
+                'price' => ($option === 'once' ? Setting::getGameOncePrice() : Setting::getGameMonthlyPrice()) + Setting::getLockerMonthlyPrice(),
+            ],
             default => [
                 'service_type' => ServiceType::GAME,
                 'game_type' => GameSubscriptionType::ONCE,
@@ -287,6 +316,20 @@ class CallbackHandler
                 "🏷️ {$booking->service_type->label()}\n" .
                 "💰 \${$booking->total_price}\n" .
                 "🕐 {$booking->created_at->format('d.m.Y H:i')}",
+            'parse_mode' => 'Markdown',
+        ]);
+    }
+
+    protected function sendAuthError(): void
+    {
+        \Log::channel('single')->error('Client is null in booking confirmation', [
+            'callback_data' => $this->update->getCallbackQuery()->getData(),
+            'from_id' => $this->update->getCallbackQuery()->getFrom()->getId(),
+        ]);
+
+        $this->telegram->sendMessage([
+            'chat_id' => $this->update->getCallbackQuery()->getMessage()->getChat()->getId(),
+            'text' => "❌ *Ошибка*\n\nПроизошла ошибка при обработке запроса.\n\nПожалуйста, используйте /start для повторной авторизации.",
             'parse_mode' => 'Markdown',
         ]);
     }
