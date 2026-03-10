@@ -5,6 +5,7 @@ namespace App\Telegram\Handlers;
 use App\Enums\BookingStatus;
 use App\Enums\GameSubscriptionType;
 use App\Enums\ServiceType;
+use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
@@ -66,13 +67,17 @@ class CallbackHandler
 
     protected function showGameOptions(): void
     {
+        $withPayment = PaymentMode::isWithPayment();
         $oncePrice = Setting::getGameOncePrice();
         $monthlyPrice = Setting::getGameMonthlyPrice();
 
+        $onceLabel = $withPayment ? "🎯 Единоразовая (\${$oncePrice})" : "🎯 Единоразовая";
+        $monthlyLabel = $withPayment ? "📅 Ежемесячная (\${$monthlyPrice})" : "📅 Ежемесячная";
+
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => "🎯 Единоразовая (\${$oncePrice})", 'callback_data' => 'booking:game_type:once']],
-                [['text' => "📅 Ежемесячная (\${$monthlyPrice})", 'callback_data' => 'booking:game_type:monthly']],
+                [['text' => $onceLabel, 'callback_data' => 'booking:game_type:once']],
+                [['text' => $monthlyLabel, 'callback_data' => 'booking:game_type:monthly']],
                 [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
             ],
         ];
@@ -96,9 +101,13 @@ class CallbackHandler
         ];
 
         $text = "🏌️ *Подтверждение бронирования*\n\n" .
-            "Услуга: {$gameType->label()} подписка на игру\n" .
-            "Стоимость: *\${$price}*\n\n" .
-            "Подтвердить бронирование?";
+            "Услуга: {$gameType->label()} подписка на игру\n";
+
+        if (PaymentMode::isWithPayment()) {
+            $text .= "Стоимость: *\${$price}*\n";
+        }
+
+        $text .= "\nПодтвердить бронирование?";
 
         $this->editMessage($text, $keyboard);
     }
@@ -121,25 +130,29 @@ class CallbackHandler
             return;
         }
 
+        $withPayment = PaymentMode::isWithPayment();
         $price = Setting::getLockerMonthlyPrice();
 
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => "1 месяц (\${$price})", 'callback_data' => 'booking:locker_months:1']],
-                [['text' => "3 месяца (\$" . ($price * 3) . ")", 'callback_data' => 'booking:locker_months:3']],
-                [['text' => "6 месяцев (\$" . ($price * 6) . ")", 'callback_data' => 'booking:locker_months:6']],
-                [['text' => "12 месяцев (\$" . ($price * 12) . ")", 'callback_data' => 'booking:locker_months:12']],
+                [['text' => $withPayment ? "1 месяц (\${$price})" : "1 месяц", 'callback_data' => 'booking:locker_months:1']],
+                [['text' => $withPayment ? "3 месяца (\$" . ($price * 3) . ")" : "3 месяца", 'callback_data' => 'booking:locker_months:3']],
+                [['text' => $withPayment ? "6 месяцев (\$" . ($price * 6) . ")" : "6 месяцев", 'callback_data' => 'booking:locker_months:6']],
+                [['text' => $withPayment ? "12 месяцев (\$" . ($price * 12) . ")" : "12 месяцев", 'callback_data' => 'booking:locker_months:12']],
                 [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
             ],
         ];
 
-        $this->editMessage(
-            "🗄️ *Аренда шкафа*\n\n" .
-            "Доступно шкафов: {$available}\n" .
-            "Стоимость: \${$price}/месяц\n\n" .
-            "Выберите срок аренды:",
-            $keyboard
-        );
+        $text = "🗄️ *Аренда шкафа*\n\n" .
+            "Доступно шкафов: {$available}\n";
+
+        if ($withPayment) {
+            $text .= "Стоимость: \${$price}/месяц\n";
+        }
+
+        $text .= "\nВыберите срок аренды:";
+
+        $this->editMessage($text, $keyboard);
     }
 
     protected function selectLockerMonths(string $months): void
@@ -156,9 +169,13 @@ class CallbackHandler
 
         $text = "🗄️ *Подтверждение бронирования*\n\n" .
             "Услуга: Аренда шкафа\n" .
-            "Срок: {$months} мес.\n" .
-            "Стоимость: *\${$price}*\n\n" .
-            "Подтвердить бронирование?";
+            "Срок: {$months} мес.\n";
+
+        if (PaymentMode::isWithPayment()) {
+            $text .= "Стоимость: *\${$price}*\n";
+        }
+
+        $text .= "\nПодтвердить бронирование?";
 
         $this->editMessage($text, $keyboard);
     }
@@ -220,11 +237,15 @@ class CallbackHandler
         $text = "📦 *Подтверждение бронирования*\n\n" .
             "Услуга: Комплексный пакет\n" .
             "Игра: {$gameTypeEnum->label()} подписка\n" .
-            "Шкаф: 1 мес.\n" .
-            "Стоимость: *\${$totalPrice}*\n" .
-            "  - Игра: \${$gamePrice}\n" .
-            "  - Шкаф: \${$lockerPrice}\n\n" .
-            "Подтвердить бронирование?";
+            "Шкаф: 1 мес.\n";
+
+        if (PaymentMode::isWithPayment()) {
+            $text .= "Стоимость: *\${$totalPrice}*\n" .
+                "  - Игра: \${$gamePrice}\n" .
+                "  - Шкаф: \${$lockerPrice}\n";
+        }
+
+        $text .= "\nПодтвердить бронирование?";
 
         $this->editMessage($text, $keyboard);
     }
@@ -308,14 +329,20 @@ class CallbackHandler
             return;
         }
 
+        $text = "🎯 *Новый запрос на бронирование*\n\n" .
+            "👤 {$this->client->display_name}\n" .
+            "📱 {$this->client->phone_number}\n" .
+            "🏷️ {$booking->service_type->label()}\n";
+
+        if (PaymentMode::isWithPayment()) {
+            $text .= "💰 \${$booking->total_price}\n";
+        }
+
+        $text .= "🕐 {$booking->created_at->format('d.m.Y H:i')}";
+
         $this->telegram->sendMessage([
             'chat_id' => $adminChatId,
-            'text' => "🎯 *Новый запрос на бронирование*\n\n" .
-                "👤 {$this->client->display_name}\n" .
-                "📱 {$this->client->phone_number}\n" .
-                "🏷️ {$booking->service_type->label()}\n" .
-                "💰 \${$booking->total_price}\n" .
-                "🕐 {$booking->created_at->format('d.m.Y H:i')}",
+            'text' => $text,
             'parse_mode' => 'Markdown',
         ]);
     }

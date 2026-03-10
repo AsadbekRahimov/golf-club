@@ -3,6 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Enums\PaymentStatus;
+use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
@@ -75,7 +76,10 @@ class SendDailyReport extends Command
         $files['subscriptions'] = $this->generateSubscriptionsReport();
         $files['lockers'] = $this->generateLockersReport();
         $files['bookings_today'] = $this->generateBookingsTodayReport();
-        $files['payments_today'] = $this->generatePaymentsTodayReport();
+
+        if (PaymentMode::isWithPayment()) {
+            $files['payments_today'] = $this->generatePaymentsTodayReport();
+        }
 
         return $files;
     }
@@ -317,14 +321,9 @@ class SendDailyReport extends Command
         $occupiedLockers = Locker::occupied()->count();
 
         $todayBookings = BookingRequest::whereDate('created_at', $today)->count();
-        $todayPayments = Payment::whereDate('created_at', $today)->count();
-        $todayRevenue = Payment::where('status', PaymentStatus::VERIFIED)
-            ->whereDate('verified_at', $today)
-            ->sum('amount');
-
         $todayNewClients = Client::whereDate('created_at', $today)->count();
 
-        return "📊 *ЕЖЕДНЕВНЫЙ ОТЧЁТ GOLF CLUB*\n" .
+        $text = "📊 *ЕЖЕДНЕВНЫЙ ОТЧЁТ GOLF CLUB*\n" .
                "📅 {$this->reportDate}\n\n" .
 
                "👥 *КЛИЕНТЫ*\n" .
@@ -343,11 +342,23 @@ class SendDailyReport extends Command
                "└ Занято: {$occupiedLockers}\n\n" .
 
                "📈 *ЗА СЕГОДНЯ*\n" .
-               "├ Бронирований: {$todayBookings}\n" .
-               "├ Платежей: {$todayPayments}\n" .
-               "└ Выручка: \${$todayRevenue}\n\n" .
+               "├ Бронирований: {$todayBookings}\n";
 
-               "📎 Файлы отчётов прилагаются ниже ⬇️";
+        if (PaymentMode::isWithPayment()) {
+            $todayPayments = Payment::whereDate('created_at', $today)->count();
+            $todayRevenue = Payment::where('status', PaymentStatus::VERIFIED)
+                ->whereDate('verified_at', $today)
+                ->sum('amount');
+
+            $text .= "├ Платежей: {$todayPayments}\n" .
+                     "└ Выручка: \${$todayRevenue}\n\n";
+        } else {
+            $text .= "\n";
+        }
+
+        $text .= "📎 Файлы отчётов прилагаются ниже ⬇️";
+
+        return $text;
     }
 
     protected function getFileCaption(string $name): string

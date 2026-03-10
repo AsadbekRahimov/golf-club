@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Orchid;
 
+use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Payment;
@@ -52,11 +53,13 @@ class PlatformProvider extends OrchidServiceProvider
                 ->icon('bs.receipt')
                 ->route('platform.payments.pending')
                 ->badge(fn () => Payment::pending()->count() ?: null, Color::WARNING)
-                ->title('Платежи'),
+                ->title('Платежи')
+                ->canSee(PaymentMode::isWithPayment()),
 
             Menu::make('Все платежи')
                 ->icon('bs.credit-card')
-                ->route('platform.payments'),
+                ->route('platform.payments')
+                ->canSee(PaymentMode::isWithPayment()),
 
             Menu::make('Шкафы')
                 ->icon('bs.archive')

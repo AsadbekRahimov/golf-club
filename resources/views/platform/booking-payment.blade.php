@@ -1,4 +1,4 @@
-@if($payment)
+@if($payment && config('golfclub.payment_mode') === 'with_payment')
 <div class="bg-white rounded shadow-sm p-4 mb-3">
     <h5 class="text-black mb-3">💳 Платеж</h5>
     
