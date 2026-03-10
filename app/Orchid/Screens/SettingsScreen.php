@@ -2,6 +2,7 @@
 
 namespace App\Orchid\Screens;
 
+use App\Helpers\PaymentMode;
 use App\Models\Setting;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
@@ -43,58 +44,62 @@ class SettingsScreen extends Screen
 
     public function layout(): iterable
     {
+        $tabs = [];
+
+        if (PaymentMode::isWithPayment()) {
+            $tabs['Тарифы'] = Layout::rows([
+                Input::make('settings.game_once_price')
+                    ->type('number')
+                    ->step('0.01')
+                    ->title('Стоимость единоразовой игры ($)')
+                    ->value(Setting::getValue('game_once_price', 50)),
+
+                Input::make('settings.game_monthly_price')
+                    ->type('number')
+                    ->step('0.01')
+                    ->title('Стоимость месячной подписки ($)')
+                    ->value(Setting::getValue('game_monthly_price', 200)),
+
+                Input::make('settings.locker_monthly_price')
+                    ->type('number')
+                    ->step('0.01')
+                    ->title('Стоимость аренды шкафа в месяц ($)')
+                    ->value(Setting::getValue('locker_monthly_price', 10)),
+            ]);
+
+            $tabs['Реквизиты'] = Layout::rows([
+                Input::make('settings.payment_card_number')
+                    ->title('Номер карты для оплаты')
+                    ->mask('9999 9999 9999 9999')
+                    ->value(Setting::getValue('payment_card_number')),
+
+                Input::make('settings.payment_card_holder')
+                    ->title('Имя владельца карты')
+                    ->value(Setting::getValue('payment_card_holder')),
+            ]);
+        }
+
+        $tabs['Контакты'] = Layout::rows([
+            Input::make('settings.contact_phone')
+                ->title('Контактный телефон')
+                ->mask('+999 99 999-99-99')
+                ->value(Setting::getValue('contact_phone')),
+        ]);
+
+        $tabs['Уведомления'] = Layout::rows([
+            Input::make('settings.notification_days_before')
+                ->type('number')
+                ->title('За сколько дней уведомлять об истечении подписки')
+                ->value(Setting::getValue('notification_days_before', 3)),
+
+            TextArea::make('settings.welcome_message')
+                ->title('Приветственное сообщение')
+                ->rows(3)
+                ->value(Setting::getValue('welcome_message')),
+        ]);
+
         return [
-            Layout::tabs([
-                'Тарифы' => Layout::rows([
-                    Input::make('settings.game_once_price')
-                        ->type('number')
-                        ->step('0.01')
-                        ->title('Стоимость единоразовой игры ($)')
-                        ->value(Setting::getValue('game_once_price', 50)),
-
-                    Input::make('settings.game_monthly_price')
-                        ->type('number')
-                        ->step('0.01')
-                        ->title('Стоимость месячной подписки ($)')
-                        ->value(Setting::getValue('game_monthly_price', 200)),
-
-                    Input::make('settings.locker_monthly_price')
-                        ->type('number')
-                        ->step('0.01')
-                        ->title('Стоимость аренды шкафа в месяц ($)')
-                        ->value(Setting::getValue('locker_monthly_price', 10)),
-                ]),
-
-                'Реквизиты' => Layout::rows([
-                    Input::make('settings.payment_card_number')
-                        ->title('Номер карты для оплаты')
-                        ->mask('9999 9999 9999 9999')
-                        ->value(Setting::getValue('payment_card_number')),
-
-                    Input::make('settings.payment_card_holder')
-                        ->title('Имя владельца карты')
-                        ->value(Setting::getValue('payment_card_holder')),
-                ]),
-
-                'Контакты' => Layout::rows([
-                    Input::make('settings.contact_phone')
-                        ->title('Контактный телефон')
-                        ->mask('+999 99 999-99-99')
-                        ->value(Setting::getValue('contact_phone')),
-                ]),
-
-                'Уведомления' => Layout::rows([
-                    Input::make('settings.notification_days_before')
-                        ->type('number')
-                        ->title('За сколько дней уведомлять об истечении подписки')
-                        ->value(Setting::getValue('notification_days_before', 3)),
-
-                    TextArea::make('settings.welcome_message')
-                        ->title('Приветственное сообщение')
-                        ->rows(3)
-                        ->value(Setting::getValue('welcome_message')),
-                ]),
-            ]),
+            Layout::tabs($tabs),
         ];
     }
 

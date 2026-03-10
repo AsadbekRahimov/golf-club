@@ -8,6 +8,7 @@ use App\Enums\PaymentStatus;
 use App\Enums\ServiceType;
 use App\Enums\SubscriptionStatus;
 use App\Enums\SubscriptionType;
+use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
@@ -45,13 +46,16 @@ class BookingService
             'status' => BookingStatus::PENDING,
         ]);
 
-        $this->telegramService->notifyAdmins(
-            "🎯 *Новый запрос на бронирование*\n\n" .
+        $notifyText = "🎯 *Новый запрос на бронирование*\n\n" .
             "👤 {$client->display_name}\n" .
             "📱 {$client->phone_number}\n" .
-            "🏷️ {$serviceType->label()}\n" .
-            "💰 \${$price}"
-        );
+            "🏷️ {$serviceType->label()}";
+
+        if (PaymentMode::isWithPayment()) {
+            $notifyText .= "\n💰 \${$price}";
+        }
+
+        $this->telegramService->notifyAdmins($notifyText);
 
         return $booking;
     }
@@ -207,7 +211,9 @@ class BookingService
             }
         }
 
-        $details .= "Стоимость: \${$booking->total_price}";
+        if (PaymentMode::isWithPayment()) {
+            $details .= "Стоимость: \${$booking->total_price}";
+        }
 
         return $details;
     }

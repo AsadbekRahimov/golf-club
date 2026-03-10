@@ -3,6 +3,7 @@
 namespace App\Orchid\Screens\Booking;
 
 use App\Enums\BookingStatus;
+use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Payment;
 use App\Services\BookingService;
@@ -36,80 +37,98 @@ class BookingEditScreen extends Screen
 
     public function commandBar(): iterable
     {
-        return [
-            Button::make('Подтвердить без оплаты')
+        $withPayment = PaymentMode::isWithPayment();
+
+        $buttons = [
+            Button::make($withPayment ? 'Подтвердить без оплаты' : 'Подтвердить')
                 ->icon('bs.check-circle')
                 ->type(Color::SUCCESS)
                 ->method('approveWithoutPayment')
                 ->canSee($this->booking?->isPending()),
+        ];
 
-            Button::make('Запросить оплату')
+        if ($withPayment) {
+            $buttons[] = Button::make('Запросить оплату')
                 ->icon('bs.credit-card')
                 ->type(Color::INFO)
                 ->method('requirePayment')
-                ->canSee($this->booking?->isPending()),
+                ->canSee($this->booking?->isPending());
 
-            Button::make('Подтвердить оплату')
+            $buttons[] = Button::make('Подтвердить оплату')
                 ->icon('bs.check2-all')
                 ->type(Color::SUCCESS)
                 ->method('verifyPayment')
-                ->canSee($this->booking?->status === BookingStatus::PAYMENT_SENT && $this->booking?->payment),
+                ->canSee($this->booking?->status === BookingStatus::PAYMENT_SENT && $this->booking?->payment);
 
-            Button::make('Отклонить оплату')
+            $buttons[] = Button::make('Отклонить оплату')
                 ->icon('bs.x-circle')
                 ->type(Color::WARNING)
                 ->method('rejectPayment')
-                ->canSee($this->booking?->status === BookingStatus::PAYMENT_SENT && $this->booking?->payment),
+                ->canSee($this->booking?->status === BookingStatus::PAYMENT_SENT && $this->booking?->payment);
+        }
 
-            Button::make('Отклонить')
-                ->icon('bs.x-circle')
-                ->type(Color::DANGER)
-                ->method('reject')
-                ->canSee(in_array($this->booking?->status, [BookingStatus::PENDING, BookingStatus::PAYMENT_SENT])),
+        $buttons[] = Button::make('Отклонить')
+            ->icon('bs.x-circle')
+            ->type(Color::DANGER)
+            ->method('reject')
+            ->canSee(in_array($this->booking?->status, [BookingStatus::PENDING, BookingStatus::PAYMENT_SENT]));
 
-            Link::make('Назад')
-                ->icon('bs.arrow-left')
-                ->route('platform.bookings'),
-        ];
+        $buttons[] = Link::make('Назад')
+            ->icon('bs.arrow-left')
+            ->route('platform.bookings');
+
+        return $buttons;
     }
 
     public function layout(): iterable
     {
-        return [
-            Layout::legend('booking', [
-                Sight::make('status', 'Статус')
-                    ->render(fn (BookingRequest $b) => 
-                        "<span class='badge bg-{$b->status->color()}'>{$b->status->label()}</span>"),
-                Sight::make('client.display_name', 'Клиент'),
-                Sight::make('client.phone_number', 'Телефон'),
-                Sight::make('service_type', 'Тип услуги')
-                    ->render(fn (BookingRequest $b) => $b->service_type->label()),
-                Sight::make('game_subscription_type', 'Тип подписки на игру')
-                    ->render(fn (BookingRequest $b) => $b->game_subscription_type?->label() ?? '-'),
-                Sight::make('locker_duration_months', 'Срок аренды шкафа')
-                    ->render(fn (BookingRequest $b) => $b->locker_duration_months 
-                        ? "{$b->locker_duration_months} мес." 
-                        : '-'),
-                Sight::make('total_price', 'Сумма')
-                    ->render(fn (BookingRequest $b) => '$' . number_format($b->total_price, 2)),
-                Sight::make('created_at', 'Дата создания')
-                    ->render(fn (BookingRequest $b) => $b->created_at->format('d.m.Y H:i')),
-                Sight::make('processedBy.name', 'Обработал'),
-                Sight::make('processed_at', 'Дата обработки')
-                    ->render(fn (BookingRequest $b) => $b->processed_at?->format('d.m.Y H:i') ?? '-'),
-            ])->title('Информация о заявке'),
+        $withPayment = PaymentMode::isWithPayment();
 
-            Layout::view('platform.booking-payment', [
-                'payment' => $this->booking?->payment,
-            ]),
-
-            Layout::rows([
-                TextArea::make('admin_notes')
-                    ->title('Заметки / Причина отказа')
-                    ->rows(3)
-                    ->value($this->booking?->admin_notes),
-            ])->title('Заметки'),
+        $sights = [
+            Sight::make('status', 'Статус')
+                ->render(fn (BookingRequest $b) =>
+                    "<span class='badge bg-{$b->status->color()}'>{$b->status->label()}</span>"),
+            Sight::make('client.display_name', 'Клиент'),
+            Sight::make('client.phone_number', 'Телефон'),
+            Sight::make('service_type', 'Тип услуги')
+                ->render(fn (BookingRequest $b) => $b->service_type->label()),
+            Sight::make('game_subscription_type', 'Тип подписки на игру')
+                ->render(fn (BookingRequest $b) => $b->game_subscription_type?->label() ?? '-'),
+            Sight::make('locker_duration_months', 'Срок аренды шкафа')
+                ->render(fn (BookingRequest $b) => $b->locker_duration_months
+                    ? "{$b->locker_duration_months} мес."
+                    : '-'),
         ];
+
+        if ($withPayment) {
+            $sights[] = Sight::make('total_price', 'Сумма')
+                ->render(fn (BookingRequest $b) => '$' . number_format($b->total_price, 2));
+        }
+
+        $sights[] = Sight::make('created_at', 'Дата создания')
+            ->render(fn (BookingRequest $b) => $b->created_at->format('d.m.Y H:i'));
+        $sights[] = Sight::make('processedBy.name', 'Обработал');
+        $sights[] = Sight::make('processed_at', 'Дата обработки')
+            ->render(fn (BookingRequest $b) => $b->processed_at?->format('d.m.Y H:i') ?? '-');
+
+        $layouts = [
+            Layout::legend('booking', $sights)->title('Информация о заявке'),
+        ];
+
+        if ($withPayment) {
+            $layouts[] = Layout::view('platform.booking-payment', [
+                'payment' => $this->booking?->payment,
+            ]);
+        }
+
+        $layouts[] = Layout::rows([
+            TextArea::make('admin_notes')
+                ->title('Заметки / Причина отказа')
+                ->rows(3)
+                ->value($this->booking?->admin_notes),
+        ])->title('Заметки');
+
+        return $layouts;
     }
 
     public function approveWithoutPayment(BookingRequest $booking, BookingService $bookingService): void

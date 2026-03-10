@@ -5,6 +5,7 @@ namespace App\Orchid\Screens;
 use App\Enums\BookingStatus;
 use App\Enums\PaymentStatus;
 use App\Enums\SubscriptionType;
+use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
@@ -50,7 +51,7 @@ class DashboardScreen extends Screen
         $prevStart = $previousRange['start'];
         $prevEnd = $previousRange['end'];
 
-        return [
+        $data = [
             'period' => $this->period,
             'period_label' => $this->getPeriodLabel(),
             'date_range' => $startDate->format('d.m.Y') . ' - ' . $endDate->format('d.m.Y'),
@@ -59,18 +60,23 @@ class DashboardScreen extends Screen
 
             'registrations' => $this->getRegistrationsData($startDate, $endDate),
             'bookings' => $this->getBookingsData($startDate, $endDate),
-            'revenue' => $this->getRevenueData($startDate, $endDate),
             'subscriptions_by_type' => $this->getSubscriptionsByType(),
             'lockers_status' => $this->getLockersStatus(),
 
             'pending_clients' => Client::pending()->latest()->limit(5)->get(),
             'pending_bookings' => BookingRequest::with('client')->awaitingAction()->latest()->limit(5)->get(),
-            'pending_payments' => Payment::with(['client', 'bookingRequest'])->pending()->latest()->limit(5)->get(),
             'recent_subscriptions' => Subscription::with(['client', 'locker'])->active()->latest()->limit(5)->get(),
             'expiring_subscriptions' => Subscription::with(['client', 'locker'])->expiring()->limit(5)->get(),
 
             'top_stats' => $this->getTopStats($startDate, $endDate),
         ];
+
+        if (PaymentMode::isWithPayment()) {
+            $data['revenue'] = $this->getRevenueData($startDate, $endDate);
+            $data['pending_payments'] = Payment::with(['client', 'bookingRequest'])->pending()->latest()->limit(5)->get();
+        }
+
+        return $data;
     }
 
     public function commandBar(): iterable
@@ -114,60 +120,89 @@ class DashboardScreen extends Screen
 
     public function layout(): iterable
     {
-        return [
-            Layout::metrics([
-                '👥 Новых клиентов' => 'metrics.new_clients',
-                '📝 Бронирований' => 'metrics.new_bookings',
-                '💰 Выручка' => 'metrics.revenue',
-                '📋 Активных подписок' => 'metrics.active_subscriptions',
-                '🗄️ Свободных шкафов' => 'metrics.available_lockers',
-                '⏳ Ожидают действий' => 'metrics.pending_actions',
-            ]),
+        $withPayment = PaymentMode::isWithPayment();
+
+        $topMetrics = [
+            '👥 Новых клиентов' => 'metrics.new_clients',
+            '📝 Бронирований' => 'metrics.new_bookings',
+        ];
+
+        if ($withPayment) {
+            $topMetrics['💰 Выручка'] = 'metrics.revenue';
+        }
+
+        $topMetrics['📋 Активных подписок'] = 'metrics.active_subscriptions';
+        $topMetrics['🗄️ Свободных шкафов'] = 'metrics.available_lockers';
+        $topMetrics['⏳ Ожидают действий'] = 'metrics.pending_actions';
+
+        $layouts = [
+            Layout::metrics($topMetrics),
 
             Layout::columns([
                 RegistrationsChart::class,
                 BookingsChart::class,
             ]),
+        ];
 
-            Layout::columns([
+        if ($withPayment) {
+            $layouts[] = Layout::columns([
                 RevenueChart::class,
                 Layout::columns([
                     SubscriptionsChart::class,
                     LockersChart::class,
                 ]),
-            ]),
+            ]);
+        } else {
+            $layouts[] = Layout::columns([
+                SubscriptionsChart::class,
+                LockersChart::class,
+            ]);
+        }
 
-            Layout::rows([
-                \Orchid\Screen\Fields\Label::make('stats_info')
-                    ->title('📊 Ключевые показатели за период')
-                    ->value(''),
-            ]),
+        $layouts[] = Layout::rows([
+            \Orchid\Screen\Fields\Label::make('stats_info')
+                ->title('📊 Ключевые показатели за период')
+                ->value(''),
+        ]);
 
-            Layout::metrics([
-                '👥 Всего клиентов' => 'top_stats.total_clients',
-                '💰 Выручка за период' => 'top_stats.total_revenue',
-                '📊 Средний чек' => 'top_stats.avg_booking_value',
-                '📈 Конверсия' => 'top_stats.conversion_rate',
-            ]),
+        $keyStats = [
+            '👥 Всего клиентов' => 'top_stats.total_clients',
+        ];
 
-            Layout::columns([
-                Layout::table('pending_clients', [
-                    TD::make('display_name', 'Клиент'),
-                    TD::make('phone_number', 'Телефон'),
-                    TD::make('created_at', 'Дата')
-                        ->render(fn ($c) => $c->created_at->format('d.m.Y H:i')),
-                ])->title('🆕 Новые заявки на регистрацию'),
+        if ($withPayment) {
+            $keyStats['💰 Выручка за период'] = 'top_stats.total_revenue';
+            $keyStats['📊 Средний чек'] = 'top_stats.avg_booking_value';
+        }
 
-                Layout::table('pending_bookings', [
-                    TD::make('client.display_name', 'Клиент'),
-                    TD::make('service_type', 'Услуга')
-                        ->render(fn ($b) => $b->service_type->label()),
-                    TD::make('total_price', 'Сумма')
-                        ->render(fn ($b) => '$' . number_format($b->total_price, 2)),
-                ])->title('⏳ Ожидающие бронирования'),
-            ]),
+        $keyStats['📈 Конверсия'] = 'top_stats.conversion_rate';
 
-            Layout::columns([
+        $layouts[] = Layout::metrics($keyStats);
+
+        $pendingBookingColumns = [
+            TD::make('client.display_name', 'Клиент'),
+            TD::make('service_type', 'Услуга')
+                ->render(fn ($b) => $b->service_type->label()),
+        ];
+
+        if ($withPayment) {
+            $pendingBookingColumns[] = TD::make('total_price', 'Сумма')
+                ->render(fn ($b) => '$' . number_format($b->total_price, 2));
+        }
+
+        $layouts[] = Layout::columns([
+            Layout::table('pending_clients', [
+                TD::make('display_name', 'Клиент'),
+                TD::make('phone_number', 'Телефон'),
+                TD::make('created_at', 'Дата')
+                    ->render(fn ($c) => $c->created_at->format('d.m.Y H:i')),
+            ])->title('🆕 Новые заявки на регистрацию'),
+
+            Layout::table('pending_bookings', $pendingBookingColumns)
+                ->title('⏳ Ожидающие бронирования'),
+        ]);
+
+        if ($withPayment) {
+            $layouts[] = Layout::columns([
                 Layout::table('pending_payments', [
                     TD::make('client.display_name', 'Клиент'),
                     TD::make('amount', 'Сумма')
@@ -187,22 +222,41 @@ class DashboardScreen extends Screen
                     TD::make('days_remaining', 'Осталось')
                         ->render(fn ($s) => $s->days_remaining ? "{$s->days_remaining} дн." : '-'),
                 ])->title('⚠️ Истекающие подписки'),
-            ]),
-
-            Layout::table('recent_subscriptions', [
+            ]);
+        } else {
+            $layouts[] = Layout::table('expiring_subscriptions', [
                 TD::make('client.display_name', 'Клиент'),
                 TD::make('subscription_type', 'Тип')
                     ->render(fn ($s) => $s->subscription_type->label()),
-                TD::make('locker.locker_number', 'Шкаф')
-                    ->render(fn ($s) => $s->locker ? "#{$s->locker->locker_number}" : '-'),
-                TD::make('price', 'Сумма')
-                    ->render(fn ($s) => '$' . number_format($s->price, 2)),
-                TD::make('start_date', 'Начало')
-                    ->render(fn ($s) => $s->start_date->format('d.m.Y')),
-                TD::make('end_date', 'Окончание')
-                    ->render(fn ($s) => $s->end_date?->format('d.m.Y') ?? 'Бессрочно'),
-            ])->title('📋 Последние активные подписки'),
+                TD::make('end_date', 'Истекает')
+                    ->render(fn ($s) => $s->end_date?->format('d.m.Y') ?? '-'),
+                TD::make('days_remaining', 'Осталось')
+                    ->render(fn ($s) => $s->days_remaining ? "{$s->days_remaining} дн." : '-'),
+            ])->title('⚠️ Истекающие подписки');
+        }
+
+        $recentSubColumns = [
+            TD::make('client.display_name', 'Клиент'),
+            TD::make('subscription_type', 'Тип')
+                ->render(fn ($s) => $s->subscription_type->label()),
+            TD::make('locker.locker_number', 'Шкаф')
+                ->render(fn ($s) => $s->locker ? "#{$s->locker->locker_number}" : '-'),
         ];
+
+        if ($withPayment) {
+            $recentSubColumns[] = TD::make('price', 'Сумма')
+                ->render(fn ($s) => '$' . number_format($s->price, 2));
+        }
+
+        $recentSubColumns[] = TD::make('start_date', 'Начало')
+            ->render(fn ($s) => $s->start_date->format('d.m.Y'));
+        $recentSubColumns[] = TD::make('end_date', 'Окончание')
+            ->render(fn ($s) => $s->end_date?->format('d.m.Y') ?? 'Бессрочно');
+
+        $layouts[] = Layout::table('recent_subscriptions', $recentSubColumns)
+            ->title('📋 Последние активные подписки');
+
+        return $layouts;
     }
 
     public function filter(Request $request): \Illuminate\Http\RedirectResponse
@@ -263,25 +317,33 @@ class DashboardScreen extends Screen
         $newBookings = BookingRequest::whereBetween('created_at', [$start, $end])->count();
         $prevBookings = BookingRequest::whereBetween('created_at', [$prevStart, $prevEnd])->count();
 
-        $revenue = Payment::where('status', PaymentStatus::VERIFIED)
-            ->whereBetween('verified_at', [$start, $end])
-            ->sum('amount');
-        $prevRevenue = Payment::where('status', PaymentStatus::VERIFIED)
-            ->whereBetween('verified_at', [$prevStart, $prevEnd])
-            ->sum('amount');
-
         $pendingClients = Client::pending()->count();
         $pendingBookings = BookingRequest::awaitingAction()->count();
-        $pendingPayments = Payment::pending()->whereHas('bookingRequest')->count();
 
-        return [
+        $metrics = [
             'new_clients' => $this->formatMetricWithTrend($newClients, $prevClients),
             'new_bookings' => $this->formatMetricWithTrend($newBookings, $prevBookings),
-            'revenue' => $this->formatMetricWithTrend('$' . number_format($revenue, 0), $prevRevenue > 0 ? (($revenue - $prevRevenue) / $prevRevenue * 100) : 0, true),
             'active_subscriptions' => number_format(Subscription::active()->count()),
             'available_lockers' => Locker::available()->count() . ' / ' . Locker::count(),
-            'pending_actions' => $pendingClients + $pendingBookings + $pendingPayments,
         ];
+
+        if (PaymentMode::isWithPayment()) {
+            $revenue = Payment::where('status', PaymentStatus::VERIFIED)
+                ->whereBetween('verified_at', [$start, $end])
+                ->sum('amount');
+            $prevRevenue = Payment::where('status', PaymentStatus::VERIFIED)
+                ->whereBetween('verified_at', [$prevStart, $prevEnd])
+                ->sum('amount');
+
+            $pendingPayments = Payment::pending()->whereHas('bookingRequest')->count();
+
+            $metrics['revenue'] = $this->formatMetricWithTrend('$' . number_format($revenue, 0), $prevRevenue > 0 ? (($revenue - $prevRevenue) / $prevRevenue * 100) : 0, true);
+            $metrics['pending_actions'] = $pendingClients + $pendingBookings + $pendingPayments;
+        } else {
+            $metrics['pending_actions'] = $pendingClients + $pendingBookings;
+        }
+
+        return $metrics;
     }
 
     protected function formatMetricWithTrend($value, $prevValueOrPercent, bool $isPercent = false): string
@@ -470,25 +532,31 @@ class DashboardScreen extends Screen
     protected function getTopStats(Carbon $start, Carbon $end): array
     {
         $totalClients = Client::approved()->count();
-        $totalRevenue = Payment::where('status', PaymentStatus::VERIFIED)
-            ->whereBetween('verified_at', [$start, $end])
-            ->sum('amount');
-        
-        $bookingsCount = BookingRequest::where('status', BookingStatus::APPROVED)
-            ->whereBetween('created_at', [$start, $end])
-            ->count();
-        
-        $avgBooking = $bookingsCount > 0 ? $totalRevenue / $bookingsCount : 0;
 
         $registeredClients = Client::whereBetween('created_at', [$start, $end])->count();
         $convertedClients = Client::approved()->whereBetween('created_at', [$start, $end])->count();
         $conversionRate = $registeredClients > 0 ? ($convertedClients / $registeredClients * 100) : 0;
 
-        return [
+        $stats = [
             'total_clients' => number_format($totalClients),
-            'total_revenue' => '$' . number_format($totalRevenue, 2),
-            'avg_booking_value' => '$' . number_format($avgBooking, 2),
             'conversion_rate' => number_format($conversionRate, 1) . '%',
         ];
+
+        if (PaymentMode::isWithPayment()) {
+            $totalRevenue = Payment::where('status', PaymentStatus::VERIFIED)
+                ->whereBetween('verified_at', [$start, $end])
+                ->sum('amount');
+
+            $bookingsCount = BookingRequest::where('status', BookingStatus::APPROVED)
+                ->whereBetween('created_at', [$start, $end])
+                ->count();
+
+            $avgBooking = $bookingsCount > 0 ? $totalRevenue / $bookingsCount : 0;
+
+            $stats['total_revenue'] = '$' . number_format($totalRevenue, 2);
+            $stats['avg_booking_value'] = '$' . number_format($avgBooking, 2);
+        }
+
+        return $stats;
     }
 }

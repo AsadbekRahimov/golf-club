@@ -4,6 +4,7 @@ namespace App\Telegram\Handlers;
 
 use App\Enums\BookingStatus;
 use App\Enums\PaymentStatus;
+use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Payment;
@@ -22,6 +23,10 @@ class FileHandler
 
     public function handle(): void
     {
+        if (PaymentMode::isWithoutPayment()) {
+            return;
+        }
+
         if (!$this->client?->isApproved()) {
             $this->sendError('Вы не можете загружать файлы.');
             return;
