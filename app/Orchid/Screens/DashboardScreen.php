@@ -302,6 +302,17 @@ class DashboardScreen extends Screen
         return is_numeric($value) ? number_format($value) . $trend : $value . $trend;
     }
 
+    protected function toChartDataset(array $data, string $name): array
+    {
+        return [
+            [
+                'labels' => array_keys($data),
+                'name'   => $name,
+                'values' => array_values($data),
+            ]
+        ];
+    }
+
     protected function getRegistrationsData(Carbon $start, Carbon $end): array
     {
         $days = $start->diffInDays($end);
@@ -313,7 +324,7 @@ class DashboardScreen extends Screen
                 $hourEnd = $start->copy()->setHour($hour + 2);
                 $data[sprintf('%02d:00', $hour)] = Client::whereBetween('created_at', [$hourStart, $hourEnd])->count();
             }
-            return $data;
+            return $this->toChartDataset($data, 'Регистрации');
         }
 
         $data = [];
@@ -342,7 +353,7 @@ class DashboardScreen extends Screen
             };
         }
 
-        return $data;
+        return $this->toChartDataset($data, 'Регистрации');
     }
 
     protected function getBookingsData(Carbon $start, Carbon $end): array
@@ -356,7 +367,7 @@ class DashboardScreen extends Screen
                 $hourEnd = $start->copy()->setHour($hour + 2);
                 $data[sprintf('%02d:00', $hour)] = BookingRequest::whereBetween('created_at', [$hourStart, $hourEnd])->count();
             }
-            return $data;
+            return $this->toChartDataset($data, 'Бронирования');
         }
 
         $data = [];
@@ -385,7 +396,7 @@ class DashboardScreen extends Screen
             };
         }
 
-        return $data;
+        return $this->toChartDataset($data, 'Бронирования');
     }
 
     protected function getRevenueData(Carbon $start, Carbon $end): array
@@ -401,8 +412,7 @@ class DashboardScreen extends Screen
                     ->whereBetween('verified_at', [$hourStart, $hourEnd])
                     ->sum('amount');
             }
-            \Log::info('Revenue data (hourly)', ['data' => $data, 'total' => array_sum($data)]);
-            return $data;
+            return $this->toChartDataset($data, 'Выручка');
         }
 
         $data = [];
@@ -433,35 +443,28 @@ class DashboardScreen extends Screen
             };
         }
 
-        \Log::info('Revenue data', [
-            'period' => $this->period,
-            'start' => $start->toDateTimeString(),
-            'end' => $end->toDateTimeString(),
-            'interval' => $interval,
-            'data' => $data,
-            'total' => array_sum($data),
-            'verified_payments_count' => Payment::where('status', PaymentStatus::VERIFIED)->count(),
-            'verified_with_date_count' => Payment::where('status', PaymentStatus::VERIFIED)->whereNotNull('verified_at')->count(),
-        ]);
-
-        return $data;
+        return $this->toChartDataset($data, 'Выручка');
     }
 
     protected function getSubscriptionsByType(): array
     {
-        return [
+        $data = [
             'Разовая игра' => Subscription::active()->where('subscription_type', SubscriptionType::GAME_ONCE)->count(),
             'Месячная игра' => Subscription::active()->where('subscription_type', SubscriptionType::GAME_MONTHLY)->count(),
             'Аренда шкафа' => Subscription::active()->where('subscription_type', SubscriptionType::LOCKER)->count(),
         ];
+
+        return $this->toChartDataset($data, 'Подписки');
     }
 
     protected function getLockersStatus(): array
     {
-        return [
+        $data = [
             'Свободные' => Locker::available()->count(),
             'Занятые' => Locker::occupied()->count(),
         ];
+
+        return $this->toChartDataset($data, 'Шкафы');
     }
 
     protected function getTopStats(Carbon $start, Carbon $end): array
