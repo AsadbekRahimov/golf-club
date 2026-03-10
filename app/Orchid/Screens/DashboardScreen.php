@@ -391,6 +391,20 @@ class DashboardScreen extends Screen
     protected function getRevenueData(Carbon $start, Carbon $end): array
     {
         $days = $start->diffInDays($end);
+        
+        if ($days <= 1) {
+            $data = [];
+            for ($hour = 0; $hour < 24; $hour += 2) {
+                $hourStart = $start->copy()->setHour($hour);
+                $hourEnd = $start->copy()->setHour($hour + 2);
+                $data[sprintf('%02d:00', $hour)] = (float) Payment::where('status', PaymentStatus::VERIFIED)
+                    ->whereBetween('verified_at', [$hourStart, $hourEnd])
+                    ->sum('amount');
+            }
+            \Log::info('Revenue data (hourly)', ['data' => $data, 'total' => array_sum($data)]);
+            return $data;
+        }
+
         $data = [];
         $current = $start->copy();
         $interval = $days > 60 ? 'month' : ($days > 14 ? 'week' : 'day');
@@ -418,6 +432,17 @@ class DashboardScreen extends Screen
                 default => $current->addDay()->startOfDay(),
             };
         }
+
+        \Log::info('Revenue data', [
+            'period' => $this->period,
+            'start' => $start->toDateTimeString(),
+            'end' => $end->toDateTimeString(),
+            'interval' => $interval,
+            'data' => $data,
+            'total' => array_sum($data),
+            'verified_payments_count' => Payment::where('status', PaymentStatus::VERIFIED)->count(),
+            'verified_with_date_count' => Payment::where('status', PaymentStatus::VERIFIED)->whereNotNull('verified_at')->count(),
+        ]);
 
         return $data;
     }
