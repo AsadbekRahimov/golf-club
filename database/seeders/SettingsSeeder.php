@@ -11,46 +11,11 @@ class SettingsSeeder extends Seeder
     {
         $settings = [
             [
-                'key' => 'payment_card_number',
-                'value' => null,
-                'type' => 'string',
-                'group' => 'payment',
-                'description' => 'Номер карты для приема платежей',
-            ],
-            [
-                'key' => 'payment_card_holder',
-                'value' => null,
-                'type' => 'string',
-                'group' => 'payment',
-                'description' => 'Имя владельца карты',
-            ],
-            [
                 'key' => 'contact_phone',
                 'value' => null,
                 'type' => 'string',
                 'group' => 'contact',
                 'description' => 'Контактный телефон администрации',
-            ],
-            [
-                'key' => 'game_once_price',
-                'value' => '50.00',
-                'type' => 'decimal',
-                'group' => 'pricing',
-                'description' => 'Стоимость единоразовой игры ($)',
-            ],
-            [
-                'key' => 'game_monthly_price',
-                'value' => '200.00',
-                'type' => 'decimal',
-                'group' => 'pricing',
-                'description' => 'Стоимость месячной подписки ($)',
-            ],
-            [
-                'key' => 'locker_monthly_price',
-                'value' => '10.00',
-                'type' => 'decimal',
-                'group' => 'pricing',
-                'description' => 'Стоимость аренды шкафа в месяц ($)',
             ],
             [
                 'key' => 'notification_days_before',

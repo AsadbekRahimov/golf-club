@@ -23,11 +23,6 @@ class ExportController extends Controller
         return $this->exportService->exportBookings($request->get('status'));
     }
 
-    public function payments(Request $request)
-    {
-        return $this->exportService->exportPayments($request->get('status'));
-    }
-
     public function subscriptions(Request $request)
     {
         return $this->exportService->exportSubscriptions($request->get('status'));

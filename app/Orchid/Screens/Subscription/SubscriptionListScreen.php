@@ -82,9 +82,6 @@ class SubscriptionListScreen extends Screen
                         return $text;
                     }),
 
-                TD::make('price', 'Цена')
-                    ->render(fn (Subscription $s) => '$' . number_format($s->price, 2)),
-
                 TD::make('status', 'Статус')
                     ->render(fn (Subscription $s) =>
                         "<span class='badge bg-{$s->status->color()}'>{$s->status->label()}</span>"),

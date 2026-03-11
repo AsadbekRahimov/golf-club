@@ -5,11 +5,10 @@ namespace App\Telegram\Handlers;
 use App\Enums\BookingStatus;
 use App\Enums\GameSubscriptionType;
 use App\Enums\ServiceType;
-use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
-use App\Models\Setting;
+use Carbon\Carbon;
 use Telegram\Bot\Api;
 use Telegram\Bot\Objects\Update;
 
@@ -47,7 +46,8 @@ class CallbackHandler
         match ($step) {
             'service' => $this->selectService($params[1] ?? ''),
             'game_type' => $this->selectGameType($params[1] ?? ''),
-            'locker_months' => $this->selectLockerMonths($params[1] ?? ''),
+            'locker_start' => $this->selectLockerStartMonth($params[1] ?? ''),
+            'locker_duration' => $this->selectLockerDuration($params[1] ?? '', $params[2] ?? ''),
             'confirm' => $this->confirmBooking(array_slice($params, 1)),
             'both_confirm' => $this->confirmBothBooking($params[1] ?? ''),
             'cancel' => $this->cancelBooking(),
@@ -59,7 +59,7 @@ class CallbackHandler
     {
         match ($service) {
             'game' => $this->showGameOptions(),
-            'locker' => $this->showLockerOptions(),
+            'locker' => $this->showLockerStartOptions(),
             'both' => $this->showBothOptions(),
             default => null,
         };
@@ -67,17 +67,10 @@ class CallbackHandler
 
     protected function showGameOptions(): void
     {
-        $withPayment = PaymentMode::isWithPayment();
-        $oncePrice = Setting::getGameOncePrice();
-        $monthlyPrice = Setting::getGameMonthlyPrice();
-
-        $onceLabel = $withPayment ? "🎯 Единоразовая (\${$oncePrice})" : "🎯 Единоразовая";
-        $monthlyLabel = $withPayment ? "📅 Ежемесячная (\${$monthlyPrice})" : "📅 Ежемесячная";
-
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => $onceLabel, 'callback_data' => 'booking:game_type:once']],
-                [['text' => $monthlyLabel, 'callback_data' => 'booking:game_type:monthly']],
+                [['text' => '🎯 Единоразовая', 'callback_data' => 'booking:game_type:once']],
+                [['text' => '📅 Ежемесячная', 'callback_data' => 'booking:game_type:monthly']],
                 [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
             ],
         ];
@@ -91,7 +84,6 @@ class CallbackHandler
     protected function selectGameType(string $type): void
     {
         $gameType = $type === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY;
-        $price = $type === 'once' ? Setting::getGameOncePrice() : Setting::getGameMonthlyPrice();
 
         $keyboard = [
             'inline_keyboard' => [
@@ -100,19 +92,15 @@ class CallbackHandler
             ],
         ];
 
-        $text = "🏌️ *Подтверждение бронирования*\n\n" .
-            "Услуга: {$gameType->label()} подписка на игру\n";
-
-        if (PaymentMode::isWithPayment()) {
-            $text .= "Стоимость: *\${$price}*\n";
-        }
-
-        $text .= "\nПодтвердить бронирование?";
-
-        $this->editMessage($text, $keyboard);
+        $this->editMessage(
+            "🏌️ *Подтверждение бронирования*\n\n" .
+            "Услуга: {$gameType->label()} подписка на игру\n\n" .
+            "Подтвердить бронирование?",
+            $keyboard
+        );
     }
 
-    protected function showLockerOptions(): void
+    protected function showLockerStartOptions(): void
     {
         $available = Locker::availableCount();
 
@@ -130,54 +118,77 @@ class CallbackHandler
             return;
         }
 
-        $withPayment = PaymentMode::isWithPayment();
-        $price = Setting::getLockerMonthlyPrice();
+        $now = Carbon::now();
+        $buttons = [];
+
+        // Current month (if not past 15th)
+        if ($now->day <= 15) {
+            $startOfMonth = $now->copy()->startOfMonth();
+            $label = $startOfMonth->translatedFormat('F Y');
+            $buttons[] = [['text' => "📅 {$label} (текущий)", 'callback_data' => "booking:locker_start:{$startOfMonth->format('Y-m')}"]];
+        }
+
+        // Next 3 months
+        for ($i = 1; $i <= 3; $i++) {
+            $month = $now->copy()->addMonths($i)->startOfMonth();
+            $label = $month->translatedFormat('F Y');
+            $buttons[] = [['text' => "📅 {$label}", 'callback_data' => "booking:locker_start:{$month->format('Y-m')}"]];
+        }
+
+        $buttons[] = [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']];
+
+        $this->editMessage(
+            "🗄️ *Аренда шкафа*\n\n" .
+            "Доступно шкафов: {$available}\n\n" .
+            "Выберите месяц начала аренды:",
+            ['inline_keyboard' => $buttons]
+        );
+    }
+
+    protected function selectLockerStartMonth(string $yearMonth): void
+    {
+        $startDate = Carbon::parse($yearMonth . '-01');
+        $startLabel = $startDate->translatedFormat('F Y');
 
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => $withPayment ? "1 месяц (\${$price})" : "1 месяц", 'callback_data' => 'booking:locker_months:1']],
-                [['text' => $withPayment ? "3 месяца (\$" . ($price * 3) . ")" : "3 месяца", 'callback_data' => 'booking:locker_months:3']],
-                [['text' => $withPayment ? "6 месяцев (\$" . ($price * 6) . ")" : "6 месяцев", 'callback_data' => 'booking:locker_months:6']],
-                [['text' => $withPayment ? "12 месяцев (\$" . ($price * 12) . ")" : "12 месяцев", 'callback_data' => 'booking:locker_months:12']],
-                [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
+                [['text' => '1 месяц', 'callback_data' => "booking:locker_duration:1:{$yearMonth}"]],
+                [['text' => '3 месяца', 'callback_data' => "booking:locker_duration:3:{$yearMonth}"]],
+                [['text' => '6 месяцев', 'callback_data' => "booking:locker_duration:6:{$yearMonth}"]],
+                [['text' => '12 месяцев', 'callback_data' => "booking:locker_duration:12:{$yearMonth}"]],
+                [['text' => '⬅️ Назад', 'callback_data' => 'booking:service:locker']],
             ],
         ];
 
-        $text = "🗄️ *Аренда шкафа*\n\n" .
-            "Доступно шкафов: {$available}\n";
-
-        if ($withPayment) {
-            $text .= "Стоимость: \${$price}/месяц\n";
-        }
-
-        $text .= "\nВыберите срок аренды:";
-
-        $this->editMessage($text, $keyboard);
+        $this->editMessage(
+            "🗄️ *Аренда шкафа*\n\n" .
+            "Начало: *{$startLabel}*\n\n" .
+            "Выберите срок аренды (мин. 1 месяц):",
+            $keyboard
+        );
     }
 
-    protected function selectLockerMonths(string $months): void
+    protected function selectLockerDuration(string $months, string $yearMonth): void
     {
         $months = (int) $months;
-        $price = Setting::getLockerMonthlyPrice() * $months;
+        $startDate = Carbon::parse($yearMonth . '-01');
+        $endDate = $startDate->copy()->addMonths($months)->subDay();
 
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:locker:{$months}"]],
+                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:locker:{$months}:{$yearMonth}"]],
                 [['text' => '❌ Отмена', 'callback_data' => 'booking:cancel']],
             ],
         ];
 
-        $text = "🗄️ *Подтверждение бронирования*\n\n" .
+        $this->editMessage(
+            "🗄️ *Подтверждение бронирования*\n\n" .
             "Услуга: Аренда шкафа\n" .
-            "Срок: {$months} мес.\n";
-
-        if (PaymentMode::isWithPayment()) {
-            $text .= "Стоимость: *\${$price}*\n";
-        }
-
-        $text .= "\nПодтвердить бронирование?";
-
-        $this->editMessage($text, $keyboard);
+            "Срок: {$months} мес.\n" .
+            "Период: {$startDate->format('d.m.Y')} — {$endDate->format('d.m.Y')}\n\n" .
+            "Подтвердить бронирование?",
+            $keyboard
+        );
     }
 
     protected function showBothOptions(): void
@@ -222,9 +233,6 @@ class CallbackHandler
             return;
         }
 
-        $gamePrice = $gameType === 'once' ? Setting::getGameOncePrice() : Setting::getGameMonthlyPrice();
-        $lockerPrice = Setting::getLockerMonthlyPrice();
-        $totalPrice = $gamePrice + $lockerPrice;
         $gameTypeEnum = $gameType === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY;
 
         $keyboard = [
@@ -234,20 +242,14 @@ class CallbackHandler
             ],
         ];
 
-        $text = "📦 *Подтверждение бронирования*\n\n" .
+        $this->editMessage(
+            "📦 *Подтверждение бронирования*\n\n" .
             "Услуга: Комплексный пакет\n" .
             "Игра: {$gameTypeEnum->label()} подписка\n" .
-            "Шкаф: 1 мес.\n";
-
-        if (PaymentMode::isWithPayment()) {
-            $text .= "Стоимость: *\${$totalPrice}*\n" .
-                "  - Игра: \${$gamePrice}\n" .
-                "  - Шкаф: \${$lockerPrice}\n";
-        }
-
-        $text .= "\nПодтвердить бронирование?";
-
-        $this->editMessage($text, $keyboard);
+            "Шкаф: 1 мес.\n\n" .
+            "Подтвердить бронирование?",
+            $keyboard
+        );
     }
 
     protected function confirmBooking(array $params): void
@@ -259,15 +261,16 @@ class CallbackHandler
 
         $service = $params[0] ?? '';
         $option = $params[1] ?? '';
+        $yearMonth = $params[2] ?? null;
 
-        $bookingData = $this->buildBookingData($service, $option);
-        
+        $bookingData = $this->buildBookingData($service, $option, $yearMonth);
+
         $booking = BookingRequest::create([
             'client_id' => $this->client->id,
             'service_type' => $bookingData['service_type'],
             'game_subscription_type' => $bookingData['game_type'],
             'locker_duration_months' => $bookingData['locker_months'],
-            'total_price' => $bookingData['price'],
+            'locker_start_date' => $bookingData['locker_start_date'],
             'status' => BookingStatus::PENDING,
         ]);
 
@@ -282,32 +285,32 @@ class CallbackHandler
         $this->notifyAdminsAboutBooking($booking);
     }
 
-    protected function buildBookingData(string $service, string $option): array
+    protected function buildBookingData(string $service, string $option, ?string $yearMonth = null): array
     {
         return match ($service) {
             'game' => [
                 'service_type' => ServiceType::GAME,
                 'game_type' => $option === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY,
                 'locker_months' => null,
-                'price' => $option === 'once' ? Setting::getGameOncePrice() : Setting::getGameMonthlyPrice(),
+                'locker_start_date' => null,
             ],
             'locker' => [
                 'service_type' => ServiceType::LOCKER,
                 'game_type' => null,
                 'locker_months' => (int) $option,
-                'price' => Setting::getLockerMonthlyPrice() * (int) $option,
+                'locker_start_date' => $yearMonth ? Carbon::parse($yearMonth . '-01') : null,
             ],
             'both' => [
                 'service_type' => ServiceType::BOTH,
                 'game_type' => $option === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY,
                 'locker_months' => 1,
-                'price' => ($option === 'once' ? Setting::getGameOncePrice() : Setting::getGameMonthlyPrice()) + Setting::getLockerMonthlyPrice(),
+                'locker_start_date' => null,
             ],
             default => [
                 'service_type' => ServiceType::GAME,
                 'game_type' => GameSubscriptionType::ONCE,
                 'locker_months' => null,
-                'price' => Setting::getGameOncePrice(),
+                'locker_start_date' => null,
             ],
         };
     }
@@ -324,7 +327,7 @@ class CallbackHandler
     protected function notifyAdminsAboutBooking(BookingRequest $booking): void
     {
         $adminChatId = config('telegram.admin_chat_id');
-        
+
         if (!$adminChatId) {
             return;
         }
@@ -332,13 +335,16 @@ class CallbackHandler
         $text = "🎯 *Новый запрос на бронирование*\n\n" .
             "👤 {$this->client->display_name}\n" .
             "📱 {$this->client->phone_number}\n" .
-            "🏷️ {$booking->service_type->label()}\n";
+            "🏷️ {$booking->service_type->label()}\n" .
+            "🕐 {$booking->created_at->format('d.m.Y H:i')}";
 
-        if (PaymentMode::isWithPayment()) {
-            $text .= "💰 \${$booking->total_price}\n";
+        if ($booking->locker_start_date) {
+            $text .= "\n📅 Начало аренды: {$booking->locker_start_date->format('d.m.Y')}";
         }
 
-        $text .= "🕐 {$booking->created_at->format('d.m.Y H:i')}";
+        if ($booking->locker_duration_months) {
+            $text .= "\n🗓 Срок: {$booking->locker_duration_months} мес.";
+        }
 
         $this->telegram->sendMessage([
             'chat_id' => $adminChatId,

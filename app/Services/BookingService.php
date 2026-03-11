@@ -4,18 +4,15 @@ namespace App\Services;
 
 use App\Enums\BookingStatus;
 use App\Enums\GameSubscriptionType;
-use App\Enums\PaymentStatus;
 use App\Enums\ServiceType;
 use App\Enums\SubscriptionStatus;
 use App\Enums\SubscriptionType;
-use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
-use App\Models\Payment;
-use App\Models\Setting;
 use App\Models\Subscription;
 use App\Models\User;
+use Carbon\Carbon;
 
 class BookingService
 {
@@ -27,7 +24,8 @@ class BookingService
         Client $client,
         ServiceType $serviceType,
         ?GameSubscriptionType $gameType = null,
-        ?int $lockerMonths = null
+        ?int $lockerMonths = null,
+        ?Carbon $lockerStartDate = null
     ): BookingRequest {
         if (in_array($serviceType, [ServiceType::LOCKER, ServiceType::BOTH])) {
             if (Locker::availableCount() === 0) {
@@ -35,60 +33,29 @@ class BookingService
             }
         }
 
-        $price = $this->calculatePrice($serviceType, $gameType, $lockerMonths);
-
         $booking = BookingRequest::create([
             'client_id' => $client->id,
             'service_type' => $serviceType,
             'game_subscription_type' => $gameType,
             'locker_duration_months' => $lockerMonths,
-            'total_price' => $price,
+            'locker_start_date' => $lockerStartDate,
             'status' => BookingStatus::PENDING,
         ]);
 
-        $notifyText = "🎯 *Новый запрос на бронирование*\n\n" .
+        $this->telegramService->notifyAdmins(
+            "🎯 *Новый запрос на бронирование*\n\n" .
             "👤 {$client->display_name}\n" .
             "📱 {$client->phone_number}\n" .
-            "🏷️ {$serviceType->label()}";
-
-        if (PaymentMode::isWithPayment()) {
-            $notifyText .= "\n💰 \${$price}";
-        }
-
-        $this->telegramService->notifyAdmins($notifyText);
+            "🏷️ {$serviceType->label()}\n" .
+            "🕐 {$booking->created_at->format('d.m.Y H:i')}"
+        );
 
         return $booking;
     }
 
-    public function calculatePrice(
-        ServiceType $serviceType,
-        ?GameSubscriptionType $gameType = null,
-        ?int $lockerMonths = null
-    ): float {
-        $price = 0;
-
-        if (in_array($serviceType, [ServiceType::GAME, ServiceType::BOTH])) {
-            $price += match ($gameType) {
-                GameSubscriptionType::ONCE => Setting::getGameOncePrice(),
-                GameSubscriptionType::MONTHLY => Setting::getGameMonthlyPrice(),
-                default => 0,
-            };
-        }
-
-        if (in_array($serviceType, [ServiceType::LOCKER, ServiceType::BOTH])) {
-            $price += Setting::getLockerMonthlyPrice() * ($lockerMonths ?? 1);
-        }
-
-        return $price;
-    }
-
-    public function approveWithoutPayment(BookingRequest $booking, User $admin): void
+    public function approve(BookingRequest $booking, User $admin): void
     {
-        $booking->update([
-            'status' => BookingStatus::APPROVED,
-            'processed_by' => $admin->id,
-            'processed_at' => now(),
-        ]);
+        $booking->approve($admin);
 
         $this->activateSubscriptions($booking);
 
@@ -96,48 +63,25 @@ class BookingService
         $this->telegramService->notifyBookingApproved($booking->client, $details);
     }
 
-    public function requirePayment(BookingRequest $booking, User $admin): void
-    {
-        $booking->update([
-            'status' => BookingStatus::PAYMENT_REQUIRED,
-            'processed_by' => $admin->id,
-            'processed_at' => now(),
-        ]);
-
-        Payment::create([
-            'booking_request_id' => $booking->id,
-            'client_id' => $booking->client_id,
-            'amount' => $booking->total_price,
-            'status' => PaymentStatus::PENDING,
-        ]);
-
-        $this->telegramService->notifyPaymentRequired($booking->client, $booking->total_price);
-    }
-
-    public function verifyPayment(Payment $payment, User $admin): void
-    {
-        $payment->verify($admin);
-
-        $booking = $payment->bookingRequest;
-        $booking->approve($admin);
-
-        $this->activateSubscriptions($booking);
-
-        $this->telegramService->notifyPaymentVerified($booking->client);
-    }
-
-    public function rejectPayment(Payment $payment, User $admin, ?string $reason = null): void
-    {
-        $payment->reject($admin, $reason);
-
-        $this->telegramService->notifyPaymentRejected($payment->client, $reason);
-    }
-
     public function reject(BookingRequest $booking, User $admin, ?string $reason = null): void
     {
         $booking->reject($admin, $reason);
 
         $this->telegramService->notifyBookingRejected($booking->client, $reason);
+    }
+
+    public function assignLockerFromAdmin(Client $client, Locker $locker, int $months, Carbon $startDate, User $admin): Subscription
+    {
+        $locker->occupy();
+
+        return Subscription::create([
+            'client_id' => $client->id,
+            'subscription_type' => SubscriptionType::LOCKER,
+            'locker_id' => $locker->id,
+            'start_date' => $startDate,
+            'end_date' => $startDate->copy()->addMonths($months),
+            'status' => SubscriptionStatus::ACTIVE,
+        ]);
     }
 
     protected function activateSubscriptions(BookingRequest $booking): void
@@ -153,36 +97,31 @@ class BookingService
                 ? now()->addMonth()
                 : null;
 
-            $price = $booking->game_subscription_type === GameSubscriptionType::ONCE
-                ? Setting::getGameOncePrice()
-                : Setting::getGameMonthlyPrice();
-
             Subscription::create([
                 'client_id' => $client->id,
                 'booking_request_id' => $booking->id,
                 'subscription_type' => $subscriptionType,
                 'start_date' => now(),
                 'end_date' => $endDate,
-                'price' => $price,
                 'status' => SubscriptionStatus::ACTIVE,
             ]);
         }
 
         if ($booking->hasLocker()) {
             $locker = Locker::getFirstAvailable();
-            
+
             if ($locker) {
                 $locker->occupy();
                 $months = $booking->locker_duration_months ?? 1;
+                $startDate = $booking->locker_start_date ?? now();
 
                 Subscription::create([
                     'client_id' => $client->id,
                     'booking_request_id' => $booking->id,
                     'subscription_type' => SubscriptionType::LOCKER,
                     'locker_id' => $locker->id,
-                    'start_date' => now(),
-                    'end_date' => now()->addMonths($months),
-                    'price' => Setting::getLockerMonthlyPrice() * $months,
+                    'start_date' => $startDate,
+                    'end_date' => $startDate->copy()->addMonths($months),
                     'status' => SubscriptionStatus::ACTIVE,
                 ]);
             }
@@ -199,20 +138,20 @@ class BookingService
 
         if ($booking->hasLocker()) {
             $details .= "Шкаф: на {$booking->locker_duration_months} мес.\n";
-            
+
             $lockerSubscription = $booking->client
                 ->activeSubscriptions()
                 ->lockerSubscriptions()
                 ->latest()
                 ->first();
-            
+
             if ($lockerSubscription?->locker) {
                 $details .= "Номер шкафа: #{$lockerSubscription->locker->locker_number}\n";
             }
-        }
 
-        if (PaymentMode::isWithPayment()) {
-            $details .= "Стоимость: \${$booking->total_price}";
+            if ($booking->locker_start_date) {
+                $details .= "Начало аренды: {$booking->locker_start_date->format('d.m.Y')}\n";
+            }
         }
 
         return $details;

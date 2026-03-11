@@ -11,8 +11,6 @@ use App\Orchid\Screens\Client\ClientListScreen;
 use App\Orchid\Screens\Client\ClientPendingScreen;
 use App\Orchid\Screens\DashboardScreen;
 use App\Orchid\Screens\Locker\LockerListScreen;
-use App\Orchid\Screens\Payment\PaymentListScreen;
-use App\Orchid\Screens\Payment\PaymentPendingScreen;
 use App\Orchid\Screens\Role\RoleEditScreen;
 use App\Orchid\Screens\Role\RoleListScreen;
 use App\Orchid\Screens\SettingsScreen;
@@ -55,13 +53,6 @@ Route::screen('/bookings/{booking}/edit', BookingEditScreen::class)
 
 Route::screen('/bookings', BookingListScreen::class)
     ->name('platform.bookings');
-
-// Payments
-Route::screen('/payments/pending', PaymentPendingScreen::class)
-    ->name('platform.payments.pending');
-
-Route::screen('/payments', PaymentListScreen::class)
-    ->name('platform.payments');
 
 // Lockers
 Route::screen('/lockers', LockerListScreen::class)
@@ -133,7 +124,6 @@ Route::screen('roles', RoleListScreen::class)
 Route::prefix('export')->name('platform.export.')->group(function () {
     Route::get('/clients', [ExportController::class, 'clients'])->name('clients');
     Route::get('/bookings', [ExportController::class, 'bookings'])->name('bookings');
-    Route::get('/payments', [ExportController::class, 'payments'])->name('payments');
     Route::get('/subscriptions', [ExportController::class, 'subscriptions'])->name('subscriptions');
     Route::get('/lockers', [ExportController::class, 'lockers'])->name('lockers');
     Route::get('/all', [ExportController::class, 'all'])->name('all');

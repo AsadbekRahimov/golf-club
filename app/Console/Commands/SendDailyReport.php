@@ -2,19 +2,15 @@
 
 namespace App\Console\Commands;
 
-use App\Enums\PaymentStatus;
-use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
-use App\Models\Payment;
 use App\Models\Subscription;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 use Rap2hpoutre\FastExcel\FastExcel;
 
 class SendDailyReport extends Command
@@ -77,10 +73,6 @@ class SendDailyReport extends Command
         $files['lockers'] = $this->generateLockersReport();
         $files['bookings_today'] = $this->generateBookingsTodayReport();
 
-        if (PaymentMode::isWithPayment()) {
-            $files['payments_today'] = $this->generatePaymentsTodayReport();
-        }
-
         return $files;
     }
 
@@ -122,7 +114,6 @@ class SendDailyReport extends Command
                 'Телефон' => $sub->client->phone_number ?? '-',
                 'Тип подписки' => $sub->subscription_type->label(),
                 'Шкаф #' => $sub->locker?->locker_number ?? '-',
-                'Цена ($)' => number_format($sub->price, 2),
                 'Статус' => $sub->status->label(),
                 'Дата начала' => $sub->start_date->format('d.m.Y'),
                 'Дата окончания' => $sub->end_date?->format('d.m.Y') ?? 'Бессрочно',
@@ -170,7 +161,6 @@ class SendDailyReport extends Command
                 'Клиент' => $booking->client->display_name ?? '-',
                 'Телефон' => $booking->client->phone_number ?? '-',
                 'Тип услуги' => $booking->service_type->label(),
-                'Сумма ($)' => number_format($booking->total_price, 2),
                 'Статус' => $booking->status->label(),
                 'Дата создания' => $booking->created_at->format('d.m.Y H:i'),
                 'Обработал' => $booking->processedBy?->name ?? '-',
@@ -178,33 +168,6 @@ class SendDailyReport extends Command
         });
 
         $this->line("  ✓ Бронирования за сегодня: " . $bookings->count() . " записей");
-        return $filePath;
-    }
-
-    protected function generatePaymentsTodayReport(): string
-    {
-        $filePath = $this->reportsPath . '/payments_today_' . $this->reportDate . '.xlsx';
-
-        $today = Carbon::today();
-        $payments = Payment::with(['client', 'verifiedBy'])
-            ->whereDate('created_at', $today)
-            ->orderBy('created_at', 'desc')
-            ->get();
-
-        (new FastExcel($payments))->export($filePath, function ($payment) {
-            return [
-                'ID' => $payment->id,
-                'Клиент' => $payment->client->display_name ?? '-',
-                'Телефон' => $payment->client->phone_number ?? '-',
-                'Сумма ($)' => number_format($payment->amount, 2),
-                'Статус' => $payment->status->label(),
-                'Чек' => $payment->has_receipt ? 'Да' : 'Нет',
-                'Дата создания' => $payment->created_at->format('d.m.Y H:i'),
-                'Проверил' => $payment->verifiedBy?->name ?? '-',
-            ];
-        });
-
-        $this->line("  ✓ Платежи за сегодня: " . $payments->count() . " записей");
         return $filePath;
     }
 
@@ -323,7 +286,7 @@ class SendDailyReport extends Command
         $todayBookings = BookingRequest::whereDate('created_at', $today)->count();
         $todayNewClients = Client::whereDate('created_at', $today)->count();
 
-        $text = "📊 *ЕЖЕДНЕВНЫЙ ОТЧЁТ GOLF CLUB*\n" .
+        return "📊 *ЕЖЕДНЕВНЫЙ ОТЧЁТ GOLF CLUB*\n" .
                "📅 {$this->reportDate}\n\n" .
 
                "👥 *КЛИЕНТЫ*\n" .
@@ -342,23 +305,9 @@ class SendDailyReport extends Command
                "└ Занято: {$occupiedLockers}\n\n" .
 
                "📈 *ЗА СЕГОДНЯ*\n" .
-               "├ Бронирований: {$todayBookings}\n";
+               "└ Бронирований: {$todayBookings}\n\n" .
 
-        if (PaymentMode::isWithPayment()) {
-            $todayPayments = Payment::whereDate('created_at', $today)->count();
-            $todayRevenue = Payment::where('status', PaymentStatus::VERIFIED)
-                ->whereDate('verified_at', $today)
-                ->sum('amount');
-
-            $text .= "├ Платежей: {$todayPayments}\n" .
-                     "└ Выручка: \${$todayRevenue}\n\n";
-        } else {
-            $text .= "\n";
-        }
-
-        $text .= "📎 Файлы отчётов прилагаются ниже ⬇️";
-
-        return $text;
+               "📎 Файлы отчётов прилагаются ниже ⬇️";
     }
 
     protected function getFileCaption(string $name): string
@@ -368,7 +317,6 @@ class SendDailyReport extends Command
             'subscriptions' => "📋 Полный список подписок\n📅 " . $this->reportDate,
             'lockers' => "🗄 Полный список шкафов\n📅 " . $this->reportDate,
             'bookings_today' => "📝 Бронирования за сегодня\n📅 " . $this->reportDate,
-            'payments_today' => "💰 Платежи за сегодня\n📅 " . $this->reportDate,
         ];
 
         return $captions[$name] ?? "📄 Отчёт {$name}\n📅 " . $this->reportDate;

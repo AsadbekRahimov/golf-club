@@ -72,52 +72,6 @@ class TelegramService
         return $this->sendMessage($client->telegram_chat_id, $text);
     }
 
-    public function notifyPaymentRequired(Client $client, float $amount): bool
-    {
-        $cardNumber = Setting::getPaymentCardNumber();
-        $cardHolder = Setting::getValue('payment_card_holder');
-
-        $text = "💳 *Требуется оплата*\n\n" .
-            "Сумма: *\${$amount}*\n\n";
-
-        if ($cardNumber) {
-            $text .= "Реквизиты для перевода:\n" .
-                "Карта: `{$cardNumber}`\n";
-
-            if ($cardHolder) {
-                $text .= "Получатель: {$cardHolder}\n";
-            }
-        }
-
-        $text .= "\nПосле оплаты отправьте фото или скан чека в этот чат.";
-
-        return $this->sendMessage($client->telegram_chat_id, $text);
-    }
-
-    public function notifyPaymentVerified(Client $client): bool
-    {
-        return $this->sendMessage(
-            $client->telegram_chat_id,
-            "✅ *Оплата подтверждена!*\n\n" .
-            "Ваша подписка активирована.\n" .
-            "Используйте /menu для просмотра подписок."
-        );
-    }
-
-    public function notifyPaymentRejected(Client $client, ?string $reason = null): bool
-    {
-        $text = "❌ *Платеж отклонен*\n\n" .
-            "К сожалению, ваш платеж не был подтвержден.";
-
-        if ($reason) {
-            $text .= "\n\nПричина: {$reason}";
-        }
-
-        $text .= "\n\nПожалуйста, отправьте корректный чек.";
-
-        return $this->sendMessage($client->telegram_chat_id, $text);
-    }
-
     public function notifySubscriptionExpiring(Client $client, string $subscriptionType, int $daysLeft): bool
     {
         return $this->sendMessage(
