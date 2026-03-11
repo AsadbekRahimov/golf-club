@@ -60,29 +60,9 @@ class Setting extends Model
         };
     }
 
-    public static function getPaymentCardNumber(): ?string
-    {
-        return self::getValue('payment_card_number');
-    }
-
     public static function getContactPhone(): ?string
     {
         return self::getValue('contact_phone');
-    }
-
-    public static function getGameOncePrice(): float
-    {
-        return (float) self::getValue('game_once_price', 50);
-    }
-
-    public static function getGameMonthlyPrice(): float
-    {
-        return (float) self::getValue('game_monthly_price', 200);
-    }
-
-    public static function getLockerMonthlyPrice(): float
-    {
-        return (float) self::getValue('locker_monthly_price', 10);
     }
 
     public static function getNotificationDaysBefore(): int

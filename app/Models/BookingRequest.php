@@ -8,7 +8,6 @@ use App\Enums\ServiceType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 use Orchid\Filters\Filterable;
 use Orchid\Metrics\Chartable;
 use Orchid\Screen\AsSource;
@@ -22,7 +21,7 @@ class BookingRequest extends Model
         'service_type',
         'game_subscription_type',
         'locker_duration_months',
-        'total_price',
+        'locker_start_date',
         'status',
         'admin_notes',
         'processed_by',
@@ -33,8 +32,8 @@ class BookingRequest extends Model
         'service_type' => ServiceType::class,
         'game_subscription_type' => GameSubscriptionType::class,
         'status' => BookingStatus::class,
-        'total_price' => 'decimal:2',
         'locker_duration_months' => 'integer',
+        'locker_start_date' => 'date',
         'processed_at' => 'datetime',
     ];
 
@@ -47,7 +46,6 @@ class BookingRequest extends Model
     protected $allowedSorts = [
         'id',
         'created_at',
-        'total_price',
         'status',
     ];
 
@@ -56,22 +54,9 @@ class BookingRequest extends Model
         return $query->where('status', BookingStatus::PENDING);
     }
 
-    public function scopePaymentRequired($query)
-    {
-        return $query->where('status', BookingStatus::PAYMENT_REQUIRED);
-    }
-
-    public function scopePaymentSent($query)
-    {
-        return $query->where('status', BookingStatus::PAYMENT_SENT);
-    }
-
     public function scopeAwaitingAction($query)
     {
-        return $query->whereIn('status', [
-            BookingStatus::PENDING,
-            BookingStatus::PAYMENT_SENT,
-        ]);
+        return $query->where('status', BookingStatus::PENDING);
     }
 
     public function client(): BelongsTo
@@ -82,11 +67,6 @@ class BookingRequest extends Model
     public function processedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'processed_by');
-    }
-
-    public function payment(): HasOne
-    {
-        return $this->hasOne(Payment::class);
     }
 
     public function hasGame(): bool
@@ -103,20 +83,6 @@ class BookingRequest extends Model
             ServiceType::LOCKER,
             ServiceType::BOTH,
         ]);
-    }
-
-    public function requirePayment(User $admin): void
-    {
-        $this->update([
-            'status' => BookingStatus::PAYMENT_REQUIRED,
-            'processed_by' => $admin->id,
-            'processed_at' => now(),
-        ]);
-    }
-
-    public function markPaymentSent(): void
-    {
-        $this->update(['status' => BookingStatus::PAYMENT_SENT]);
     }
 
     public function approve(User $admin): void
@@ -141,11 +107,6 @@ class BookingRequest extends Model
     public function isPending(): bool
     {
         return $this->status === BookingStatus::PENDING;
-    }
-
-    public function isPaymentRequired(): bool
-    {
-        return $this->status === BookingStatus::PAYMENT_REQUIRED;
     }
 
     public function isApproved(): bool

@@ -3,9 +3,7 @@
 namespace App\Orchid\Screens\Booking;
 
 use App\Enums\BookingStatus;
-use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
-use App\Models\Payment;
 use App\Services\BookingService;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
@@ -28,7 +26,7 @@ class BookingEditScreen extends Screen
 
     public function query(BookingRequest $booking): iterable
     {
-        $booking->load(['client', 'payment', 'processedBy']);
+        $booking->load(['client', 'processedBy']);
 
         return [
             'booking' => $booking,
@@ -37,53 +35,27 @@ class BookingEditScreen extends Screen
 
     public function commandBar(): iterable
     {
-        $withPayment = PaymentMode::isWithPayment();
-
-        $buttons = [
-            Button::make($withPayment ? 'Подтвердить без оплаты' : 'Подтвердить')
+        return [
+            Button::make('Подтвердить')
                 ->icon('bs.check-circle')
                 ->type(Color::SUCCESS)
-                ->method('approveWithoutPayment')
+                ->method('approve')
                 ->canSee($this->booking?->isPending()),
-        ];
 
-        if ($withPayment) {
-            $buttons[] = Button::make('Запросить оплату')
-                ->icon('bs.credit-card')
-                ->type(Color::INFO)
-                ->method('requirePayment')
-                ->canSee($this->booking?->isPending());
-
-            $buttons[] = Button::make('Подтвердить оплату')
-                ->icon('bs.check2-all')
-                ->type(Color::SUCCESS)
-                ->method('verifyPayment')
-                ->canSee($this->booking?->status === BookingStatus::PAYMENT_SENT && $this->booking?->payment);
-
-            $buttons[] = Button::make('Отклонить оплату')
+            Button::make('Отклонить')
                 ->icon('bs.x-circle')
-                ->type(Color::WARNING)
-                ->method('rejectPayment')
-                ->canSee($this->booking?->status === BookingStatus::PAYMENT_SENT && $this->booking?->payment);
-        }
+                ->type(Color::DANGER)
+                ->method('reject')
+                ->canSee($this->booking?->isPending()),
 
-        $buttons[] = Button::make('Отклонить')
-            ->icon('bs.x-circle')
-            ->type(Color::DANGER)
-            ->method('reject')
-            ->canSee(in_array($this->booking?->status, [BookingStatus::PENDING, BookingStatus::PAYMENT_SENT]));
-
-        $buttons[] = Link::make('Назад')
-            ->icon('bs.arrow-left')
-            ->route('platform.bookings');
-
-        return $buttons;
+            Link::make('Назад')
+                ->icon('bs.arrow-left')
+                ->route('platform.bookings'),
+        ];
     }
 
     public function layout(): iterable
     {
-        $withPayment = PaymentMode::isWithPayment();
-
         $sights = [
             Sight::make('status', 'Статус')
                 ->render(fn (BookingRequest $b) =>
@@ -98,66 +70,32 @@ class BookingEditScreen extends Screen
                 ->render(fn (BookingRequest $b) => $b->locker_duration_months
                     ? "{$b->locker_duration_months} мес."
                     : '-'),
+            Sight::make('locker_start_date', 'Начало аренды шкафа')
+                ->render(fn (BookingRequest $b) => $b->locker_start_date?->format('d.m.Y') ?? '-'),
+            Sight::make('created_at', 'Дата создания')
+                ->render(fn (BookingRequest $b) => $b->created_at->format('d.m.Y H:i')),
+            Sight::make('processedBy.name', 'Обработал'),
+            Sight::make('processed_at', 'Дата обработки')
+                ->render(fn (BookingRequest $b) => $b->processed_at?->format('d.m.Y H:i') ?? '-'),
         ];
 
-        if ($withPayment) {
-            $sights[] = Sight::make('total_price', 'Сумма')
-                ->render(fn (BookingRequest $b) => '$' . number_format($b->total_price, 2));
-        }
-
-        $sights[] = Sight::make('created_at', 'Дата создания')
-            ->render(fn (BookingRequest $b) => $b->created_at->format('d.m.Y H:i'));
-        $sights[] = Sight::make('processedBy.name', 'Обработал');
-        $sights[] = Sight::make('processed_at', 'Дата обработки')
-            ->render(fn (BookingRequest $b) => $b->processed_at?->format('d.m.Y H:i') ?? '-');
-
-        $layouts = [
+        return [
             Layout::legend('booking', $sights)->title('Информация о заявке'),
+
+            Layout::rows([
+                TextArea::make('admin_notes')
+                    ->title('Заметки / Причина отказа')
+                    ->rows(3)
+                    ->value($this->booking?->admin_notes),
+            ])->title('Заметки'),
         ];
-
-        if ($withPayment) {
-            $layouts[] = Layout::view('platform.booking-payment', [
-                'payment' => $this->booking?->payment,
-            ]);
-        }
-
-        $layouts[] = Layout::rows([
-            TextArea::make('admin_notes')
-                ->title('Заметки / Причина отказа')
-                ->rows(3)
-                ->value($this->booking?->admin_notes),
-        ])->title('Заметки');
-
-        return $layouts;
     }
 
-    public function approveWithoutPayment(BookingRequest $booking, BookingService $bookingService): void
+    public function approve(BookingRequest $booking, BookingService $bookingService): void
     {
-        $bookingService->approveWithoutPayment($booking, auth()->user());
+        $bookingService->approve($booking, auth()->user());
 
         Toast::success('Заявка подтверждена, подписки активированы, уведомление отправлено');
-    }
-
-    public function requirePayment(BookingRequest $booking, BookingService $bookingService): void
-    {
-        $bookingService->requirePayment($booking, auth()->user());
-
-        Toast::info('Клиенту отправлен запрос на оплату');
-    }
-
-    public function verifyPayment(BookingRequest $booking, BookingService $bookingService): void
-    {
-        $bookingService->verifyPayment($booking->payment, auth()->user());
-
-        Toast::success('Оплата подтверждена, подписки активированы');
-    }
-
-    public function rejectPayment(BookingRequest $booking, Request $request, BookingService $bookingService): void
-    {
-        $reason = $request->input('admin_notes') ?: 'Оплата отклонена администратором';
-        $bookingService->rejectPayment($booking->payment, auth()->user(), $reason);
-
-        Toast::warning('Оплата отклонена, уведомление отправлено клиенту');
     }
 
     public function reject(BookingRequest $booking, Request $request, BookingService $bookingService): void

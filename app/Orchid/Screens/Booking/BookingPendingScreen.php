@@ -2,7 +2,6 @@
 
 namespace App\Orchid\Screens\Booking;
 
-use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
@@ -33,35 +32,28 @@ class BookingPendingScreen extends Screen
 
     public function layout(): iterable
     {
-        $columns = [
-            TD::make('client.display_name', 'Клиент')
-                ->render(fn (BookingRequest $booking) => $booking->client->display_name),
-
-            TD::make('client.phone_number', 'Телефон'),
-
-            TD::make('service_type', 'Услуга')
-                ->render(fn (BookingRequest $booking) => $booking->service_type->label()),
-        ];
-
-        if (PaymentMode::isWithPayment()) {
-            $columns[] = TD::make('total_price', 'Сумма')
-                ->render(fn (BookingRequest $booking) => '$' . number_format($booking->total_price, 2));
-        }
-
-        $columns[] = TD::make('status', 'Статус')
-            ->render(fn (BookingRequest $booking) =>
-                "<span class='badge bg-{$booking->status->color()}'>{$booking->status->label()}</span>");
-
-        $columns[] = TD::make('created_at', 'Дата')
-            ->render(fn (BookingRequest $booking) => $booking->created_at->format('d.m.Y H:i'));
-
-        $columns[] = TD::make('action', '')
-            ->render(fn (BookingRequest $booking) => Link::make('Обработать')
-                ->class('btn btn-sm btn-primary')
-                ->route('platform.bookings.edit', $booking));
-
         return [
-            Layout::table('bookings', $columns),
+            Layout::table('bookings', [
+                TD::make('client.display_name', 'Клиент')
+                    ->render(fn (BookingRequest $booking) => $booking->client->display_name),
+
+                TD::make('client.phone_number', 'Телефон'),
+
+                TD::make('service_type', 'Услуга')
+                    ->render(fn (BookingRequest $booking) => $booking->service_type->label()),
+
+                TD::make('status', 'Статус')
+                    ->render(fn (BookingRequest $booking) =>
+                        "<span class='badge bg-{$booking->status->color()}'>{$booking->status->label()}</span>"),
+
+                TD::make('created_at', 'Дата')
+                    ->render(fn (BookingRequest $booking) => $booking->created_at->format('d.m.Y H:i')),
+
+                TD::make('action', '')
+                    ->render(fn (BookingRequest $booking) => Link::make('Обработать')
+                        ->class('btn btn-sm btn-primary')
+                        ->route('platform.bookings.edit', $booking)),
+            ]),
         ];
     }
 }

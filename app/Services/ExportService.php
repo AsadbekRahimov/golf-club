@@ -2,14 +2,11 @@
 
 namespace App\Services;
 
-use App\Helpers\PaymentMode;
 use App\Models\BookingRequest;
 use App\Models\Client;
 use App\Models\Locker;
-use App\Models\Payment;
 use App\Models\Subscription;
 use Carbon\Carbon;
-use App\Enums\PaymentStatus;
 use Rap2hpoutre\FastExcel\FastExcel;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -52,54 +49,19 @@ class ExportService
 
         $bookings = $query->orderBy('created_at', 'desc')->get();
 
-        $withPayment = PaymentMode::isWithPayment();
-
-        return (new FastExcel($bookings))->download('bookings_' . now()->format('Y-m-d_H-i') . '.xlsx', function ($booking) use ($withPayment) {
-            $row = [
+        return (new FastExcel($bookings))->download('bookings_' . now()->format('Y-m-d_H-i') . '.xlsx', function ($booking) {
+            return [
                 'ID' => $booking->id,
                 'Клиент' => $booking->client->display_name ?? '-',
                 'Телефон' => $booking->client->phone_number ?? '-',
                 'Тип услуги' => $booking->service_type->label(),
                 'Тип игры' => $booking->game_subscription_type?->label() ?? '-',
                 'Срок шкафа (мес)' => $booking->locker_duration_months ?? '-',
-            ];
-
-            if ($withPayment) {
-                $row['Сумма ($)'] = number_format($booking->total_price, 2);
-            }
-
-            $row['Статус'] = $booking->status->label();
-            $row['Дата создания'] = $booking->created_at->format('d.m.Y H:i');
-            $row['Обработал'] = $booking->processedBy?->name ?? '-';
-            $row['Дата обработки'] = $booking->processed_at?->format('d.m.Y H:i') ?? '-';
-            $row['Заметки'] = $booking->admin_notes ?? '-';
-
-            return $row;
-        });
-    }
-
-    public function exportPayments(?string $status = null): StreamedResponse
-    {
-        $query = Payment::query()->with(['client', 'bookingRequest', 'verifiedBy']);
-
-        if ($status) {
-            $query->where('status', $status);
-        }
-
-        $payments = $query->orderBy('created_at', 'desc')->get();
-
-        return (new FastExcel($payments))->download('payments_' . now()->format('Y-m-d_H-i') . '.xlsx', function ($payment) {
-            return [
-                'ID' => $payment->id,
-                'Клиент' => $payment->client->display_name ?? '-',
-                'Телефон' => $payment->client->phone_number ?? '-',
-                'Заявка #' => $payment->booking_request_id,
-                'Сумма ($)' => number_format($payment->amount, 2),
-                'Статус' => $payment->status->label(),
-                'Чек загружен' => $payment->has_receipt ? 'Да' : 'Нет',
-                'Дата создания' => $payment->created_at->format('d.m.Y H:i'),
-                'Проверил' => $payment->verifiedBy?->name ?? '-',
-                'Дата проверки' => $payment->verified_at?->format('d.m.Y H:i') ?? '-',
+                'Статус' => $booking->status->label(),
+                'Дата создания' => $booking->created_at->format('d.m.Y H:i'),
+                'Обработал' => $booking->processedBy?->name ?? '-',
+                'Дата обработки' => $booking->processed_at?->format('d.m.Y H:i') ?? '-',
+                'Заметки' => $booking->admin_notes ?? '-',
             ];
         });
     }
@@ -121,7 +83,6 @@ class ExportService
                 'Телефон' => $sub->client->phone_number ?? '-',
                 'Тип подписки' => $sub->subscription_type->label(),
                 'Шкаф #' => $sub->locker?->locker_number ?? '-',
-                'Цена ($)' => number_format($sub->price, 2),
                 'Статус' => $sub->status->label(),
                 'Дата начала' => $sub->start_date->format('d.m.Y'),
                 'Дата окончания' => $sub->end_date?->format('d.m.Y') ?? 'Бессрочно',
@@ -155,7 +116,7 @@ class ExportService
 
         $data->push(['=== КЛИЕНТЫ ===']);
         $data->push(['ID', 'Телефон', 'Имя', 'Статус', 'Дата регистрации']);
-        
+
         Client::orderBy('created_at', 'desc')->each(function ($client) use ($data) {
             $data->push([
                 $client->id,
@@ -168,35 +129,17 @@ class ExportService
 
         $data->push(['']);
         $data->push(['=== БРОНИРОВАНИЯ ===']);
-        $data->push(['ID', 'Клиент', 'Услуга', 'Сумма', 'Статус', 'Дата']);
+        $data->push(['ID', 'Клиент', 'Услуга', 'Статус', 'Дата']);
 
         BookingRequest::with('client')->orderBy('created_at', 'desc')->each(function ($booking) use ($data) {
             $data->push([
                 $booking->id,
                 $booking->client->display_name ?? '-',
                 $booking->service_type->label(),
-                '$' . number_format($booking->total_price, 2),
                 $booking->status->label(),
                 $booking->created_at->format('d.m.Y H:i'),
             ]);
         });
-
-        if (PaymentMode::isWithPayment()) {
-            $data->push(['']);
-            $data->push(['=== ПЛАТЕЖИ ===']);
-            $data->push(['ID', 'Клиент', 'Сумма', 'Статус', 'Чек', 'Дата']);
-
-            Payment::with('client')->orderBy('created_at', 'desc')->each(function ($payment) use ($data) {
-                $data->push([
-                    $payment->id,
-                    $payment->client->display_name ?? '-',
-                    '$' . number_format($payment->amount, 2),
-                    $payment->status->label(),
-                    $payment->has_receipt ? 'Да' : 'Нет',
-                    $payment->created_at->format('d.m.Y H:i'),
-                ]);
-            });
-        }
 
         $data->push(['']);
         $data->push(['=== ПОДПИСКИ ===']);
@@ -231,14 +174,6 @@ class ExportService
         $data->push(['Новых клиентов за период', Client::whereBetween('created_at', [$startDate, $endDate])->count()]);
         $data->push(['Активных подписок', Subscription::active()->count()]);
         $data->push(['Бронирований за период', BookingRequest::whereBetween('created_at', [$startDate, $endDate])->count()]);
-
-        if (PaymentMode::isWithPayment()) {
-            $revenue = Payment::where('status', PaymentStatus::VERIFIED)
-                ->whereBetween('verified_at', [$startDate, $endDate])
-                ->sum('amount');
-            $data->push(['Выручка за период ($)', number_format($revenue, 2)]);
-        }
-
         $data->push(['Свободных шкафов', Locker::available()->count()]);
         $data->push(['Занятых шкафов', Locker::occupied()->count()]);
         $data->push(['']);
@@ -260,7 +195,7 @@ class ExportService
 
         $data->push(['']);
         $data->push(['=== БРОНИРОВАНИЯ ЗА ПЕРИОД ===']);
-        $data->push(['ID', 'Клиент', 'Услуга', 'Сумма', 'Статус', 'Дата']);
+        $data->push(['ID', 'Клиент', 'Услуга', 'Статус', 'Дата']);
 
         BookingRequest::with('client')
             ->whereBetween('created_at', [$startDate, $endDate])
@@ -270,31 +205,10 @@ class ExportService
                     $booking->id,
                     $booking->client->display_name ?? '-',
                     $booking->service_type->label(),
-                    '$' . number_format($booking->total_price, 2),
                     $booking->status->label(),
                     $booking->created_at->format('d.m.Y H:i'),
                 ]);
             });
-
-        if (PaymentMode::isWithPayment()) {
-            $data->push(['']);
-            $data->push(['=== ПЛАТЕЖИ ЗА ПЕРИОД ===']);
-            $data->push(['ID', 'Клиент', 'Сумма', 'Статус', 'Дата проверки']);
-
-            Payment::with('client')
-                ->where('status', PaymentStatus::VERIFIED)
-                ->whereBetween('verified_at', [$startDate, $endDate])
-                ->orderBy('verified_at', 'desc')
-                ->each(function ($payment) use ($data) {
-                    $data->push([
-                        $payment->id,
-                        $payment->client->display_name ?? '-',
-                        '$' . number_format($payment->amount, 2),
-                        $payment->status->label(),
-                        $payment->verified_at?->format('d.m.Y H:i') ?? '-',
-                    ]);
-                });
-        }
 
         return (new FastExcel($data))->download('golf_club_report_' . now()->format('Y-m-d_H-i') . '.xlsx');
     }

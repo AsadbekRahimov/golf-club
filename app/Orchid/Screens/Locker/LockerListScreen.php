@@ -3,12 +3,18 @@
 namespace App\Orchid\Screens\Locker;
 
 use App\Enums\LockerStatus;
+use App\Enums\SubscriptionStatus;
+use App\Enums\SubscriptionType;
+use App\Models\Client;
 use App\Models\Locker;
 use App\Models\Subscription;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
+use Orchid\Screen\Fields\DateTimer;
 use Orchid\Screen\Fields\Input;
+use Orchid\Screen\Fields\Select;
 use Orchid\Screen\Screen;
 use Orchid\Screen\TD;
 use Orchid\Support\Color;
@@ -65,27 +71,66 @@ class LockerListScreen extends Screen
                     ->help('Шкафы будут созданы с автоматической нумерацией'),
             ])->title('Добавить шкафы'),
 
+            Layout::rows([
+                Select::make('assign_client_id')
+                    ->title('Клиент')
+                    ->fromModel(Client::approved(), 'display_name')
+                    ->empty('Выберите клиента'),
+
+                Select::make('assign_locker_id')
+                    ->title('Шкаф')
+                    ->fromModel(Locker::available(), 'locker_number')
+                    ->empty('Выберите свободный шкаф'),
+
+                DateTimer::make('assign_start_date')
+                    ->title('Дата начала аренды')
+                    ->format('Y-m-d')
+                    ->value(now()->startOfMonth()->format('Y-m-d')),
+
+                Select::make('assign_months')
+                    ->title('Срок аренды')
+                    ->options([
+                        1 => '1 месяц',
+                        2 => '2 месяца',
+                        3 => '3 месяца',
+                        6 => '6 месяцев',
+                        12 => '12 месяцев',
+                    ])
+                    ->value(1),
+
+                Button::make('Назначить шкаф')
+                    ->icon('bs.box-arrow-in-right')
+                    ->type(Color::SUCCESS)
+                    ->method('assignLocker'),
+            ])->title('🗄️ Назначить шкаф клиенту'),
+
             Layout::table('lockers', [
                 TD::make('locker_number', 'Номер')
                     ->sort()
                     ->render(fn (Locker $l) => "#{$l->locker_number}"),
 
                 TD::make('status', 'Статус')
-                    ->render(fn (Locker $l) => 
+                    ->render(fn (Locker $l) =>
                         "<span class='badge bg-{$l->status->color()}'>{$l->status->label()}</span>"),
 
                 TD::make('client', 'Клиент')
-                    ->render(fn (Locker $l) => $l->activeSubscription?->client?->display_name ?? '-'),
+                    ->render(fn (Locker $l) => $l->activeSubscription?->client
+                        ? Link::make($l->activeSubscription->client->display_name)
+                            ->route('platform.clients.edit', $l->activeSubscription->client)
+                        : '-'),
+
+                TD::make('start_date', 'Аренда с')
+                    ->render(fn (Locker $l) => $l->activeSubscription?->start_date?->format('d.m.Y') ?? '-'),
 
                 TD::make('end_date', 'Аренда до')
                     ->render(fn (Locker $l) => $l->activeSubscription?->end_date?->format('d.m.Y') ?? '-'),
 
-                TD::make('days_remaining', 'Осталось дней')
+                TD::make('days_remaining', 'Осталось')
                     ->render(function (Locker $l) {
                         $days = $l->activeSubscription?->days_remaining;
                         if ($days === null) return '-';
                         $color = $days <= 3 ? 'danger' : ($days <= 7 ? 'warning' : 'success');
-                        return "<span class='badge bg-{$color}'>{$days}</span>";
+                        return "<span class='badge bg-{$color}'>{$days} дн.</span>";
                     }),
 
                 TD::make('description', 'Описание'),
@@ -99,6 +144,40 @@ class LockerListScreen extends Screen
                         : ''),
             ]),
         ];
+    }
+
+    public function assignLocker(Request $request): void
+    {
+        $request->validate([
+            'assign_client_id' => 'required|exists:clients,id',
+            'assign_locker_id' => 'required|exists:lockers,id',
+            'assign_start_date' => 'required|date',
+            'assign_months' => 'required|integer|min:1|max:12',
+        ]);
+
+        $client = Client::findOrFail($request->input('assign_client_id'));
+        $locker = Locker::findOrFail($request->input('assign_locker_id'));
+
+        if (!$locker->isAvailable()) {
+            Toast::error('Этот шкаф уже занят');
+            return;
+        }
+
+        $startDate = Carbon::parse($request->input('assign_start_date'));
+        $months = (int) $request->input('assign_months');
+
+        $locker->occupy();
+
+        Subscription::create([
+            'client_id' => $client->id,
+            'subscription_type' => SubscriptionType::LOCKER,
+            'locker_id' => $locker->id,
+            'start_date' => $startDate,
+            'end_date' => $startDate->copy()->addMonths($months),
+            'status' => SubscriptionStatus::ACTIVE,
+        ]);
+
+        Toast::success("Шкаф #{$locker->locker_number} назначен клиенту {$client->display_name} на {$months} мес.");
     }
 
     public function release(Request $request): void
@@ -118,7 +197,7 @@ class LockerListScreen extends Screen
     public function addLockers(Request $request): void
     {
         $count = (int) $request->input('count', 10);
-        
+
         $lastNumber = Locker::max('locker_number') ?? '000';
         $startNumber = (int) $lastNumber + 1;
 
