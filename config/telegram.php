@@ -18,6 +18,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Telegram Channel for Notifications [Optional]
+    |--------------------------------------------------------------------------
+    |
+    | Specify the channel ID for sending all admin notifications.
+    | For private channels, use the channel ID (e.g., -1001234567890).
+    |
+    */
+    'channel_id' => env('TELEGRAM_CHANNEL_ID', ''),
+
+    /*
+    |--------------------------------------------------------------------------
     | Asynchronous Requests [Optional]
     |--------------------------------------------------------------------------
     |

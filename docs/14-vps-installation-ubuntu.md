@@ -699,14 +699,14 @@ REDIS_PORT=6379
 TELEGRAM_BOT_TOKEN=
 TELEGRAM_WEBHOOK_URL=https://golfclub.example.com/telegram/webhook
 TELEGRAM_WEBHOOK_SECRET=your_random_secret_string
-TELEGRAM_ADMIN_CHAT_ID=
+TELEGRAM_CHANNEL_ID=
 ```
 
 > ⚠️ **ВАЖНО:** 
 > - Замените `golfclub.example.com` на ваш домен
 > - Замените `your_secure_password_here` на пароль от PostgreSQL
 > - `TELEGRAM_BOT_TOKEN` заполним позже
-> - `TELEGRAM_ADMIN_CHAT_ID` заполним позже
+> - `TELEGRAM_CHANNEL_ID` заполним позже
 
 ### 12.5 Генерируем ключ приложения
 ```bash
@@ -1035,12 +1035,18 @@ BotFather выдаст токен вида:
 
 > ⚠️ **СОХРАНИТЕ ЭТОТ ТОКЕН!** Он понадобится дальше.
 
-### 18.6 Узнаём свой Chat ID
-1. Найдите в Telegram бота `@userinfobot`
-2. Отправьте `/start`
-3. Бот покажет ваш **Id** (числовой)
+### 18.6 Создаём канал и получаем Channel ID
+1. **Создайте закрытый канал в Telegram:**
+   - Откройте Telegram → Новый канал → Закрытый канал
+   - Дайте название (например: "Golf Club Уведомления")
+   - Добавьте бота как администратора с правом отправки сообщений
 
-Это будет ваш `TELEGRAM_ADMIN_CHAT_ID` для получения уведомлений.
+2. **Получите ID канала:**
+   - Отправьте любое сообщение в созданный канал
+   - Перешлите это сообщение боту `@userinfobot`
+   - Бот покажет **Channel ID** (начинается с -100...)
+
+Это будет ваш `TELEGRAM_CHANNEL_ID` для получения уведомлений.
 
 ### 18.7 Обновляем .env
 ```bash
@@ -1050,7 +1056,7 @@ nano /var/www/golfclub/.env
 Заполните:
 ```env
 TELEGRAM_BOT_TOKEN=7123456789:AAHxxx-xxxxxxxxxxxxxxxxxxxxxxxxxxxx
-TELEGRAM_ADMIN_CHAT_ID=123456789
+TELEGRAM_CHANNEL_ID=-1001234567890
 ```
 
 ### 18.8 Очищаем кэш
@@ -1522,7 +1528,7 @@ htop
 ### Telegram
 - [ ] Telegram бот создан в @BotFather
 - [ ] Токен добавлен в .env
-- [ ] TELEGRAM_ADMIN_CHAT_ID настроен
+- [ ] TELEGRAM_CHANNEL_ID настроен
 - [ ] Webhook установлен и работает
 
 ### Администрирование

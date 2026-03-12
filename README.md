@@ -51,7 +51,7 @@ DB_PASSWORD=your_password
 TELEGRAM_BOT_TOKEN=ваш_токен_бота
 TELEGRAM_WEBHOOK_URL=https://ваш-домен.com/telegram/webhook
 TELEGRAM_WEBHOOK_SECRET=случайная_строка_для_безопасности
-TELEGRAM_ADMIN_CHAT_ID=ваш_telegram_id
+TELEGRAM_CHANNEL_ID=-1001234567890
 ```
 
 ### 3. Миграции и начальные данные

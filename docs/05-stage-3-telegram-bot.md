@@ -80,7 +80,7 @@ return [
 TELEGRAM_BOT_TOKEN=your_bot_token_here
 TELEGRAM_WEBHOOK_URL=https://yourdomain.com/telegram/webhook
 TELEGRAM_WEBHOOK_SECRET=random_secret_string_here
-TELEGRAM_ADMIN_CHAT_ID=123456789
+TELEGRAM_CHANNEL_ID=-1001234567890
 ```
 
 ---

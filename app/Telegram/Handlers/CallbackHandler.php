@@ -202,9 +202,9 @@ class CallbackHandler
 
     protected function notifyAdminsAboutBooking(BookingRequest $booking): void
     {
-        $adminChatId = config('telegram.admin_chat_id');
+        $channelId = config('telegram.channel_id');
 
-        if (!$adminChatId) {
+        if (!$channelId) {
             return;
         }
 
@@ -223,7 +223,7 @@ class CallbackHandler
         }
 
         $this->telegram->sendMessage([
-            'chat_id' => $adminChatId,
+            'chat_id' => $channelId,
             'text' => $text,
             'parse_mode' => 'Markdown',
         ]);

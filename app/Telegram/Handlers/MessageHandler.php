@@ -341,14 +341,14 @@ class MessageHandler
 
     protected function notifyAdminsAboutNewClient(): void
     {
-        $adminChatId = config('telegram.admin_chat_id');
+        $channelId = config('telegram.channel_id');
         
-        if (!$adminChatId) {
+        if (!$channelId) {
             return;
         }
 
         $this->telegram->sendMessage([
-            'chat_id' => $adminChatId,
+            'chat_id' => $channelId,
             'text' => "🆕 *Новая заявка на регистрацию*\n\n" .
                 "👤 {$this->client->display_name}\n" .
                 "📱 {$this->client->phone_number}\n" .

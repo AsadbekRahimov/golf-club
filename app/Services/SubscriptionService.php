@@ -88,7 +88,8 @@ class SubscriptionService
 
     public function processExpired(): int
     {
-        $expired = Subscription::active()
+        $expired = Subscription::with(['client', 'locker'])
+            ->active()
             ->whereNotNull('end_date')
             ->where('end_date', '<', now())
             ->get();
@@ -97,6 +98,21 @@ class SubscriptionService
 
         foreach ($expired as $subscription) {
             $subscription->expire();
+            
+            // Notify client in Telegram
+            $this->telegramService->notifySubscriptionExpired(
+                $subscription->client,
+                $subscription->subscription_type->label(),
+                $subscription->end_date
+            );
+            
+            // Notify admin
+            $this->telegramService->notifyAdminsAboutExpiredSubscription(
+                $subscription->client,
+                $subscription->subscription_type->label(),
+                $subscription->locker
+            );
+            
             $count++;
         }
 

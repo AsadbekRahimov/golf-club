@@ -618,8 +618,8 @@ TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_WEBHOOK_URL=https://yourdomain.com/telegram/webhook
 TELEGRAM_WEBHOOK_SECRET=random_secret_string
 
-# Admin Telegram IDs (для уведомлений)
-TELEGRAM_ADMIN_IDS=123456789,987654321
+# Telegram Channel ID (для уведомлений)
+TELEGRAM_CHANNEL_ID=-1001234567890
 
 # Database
 DB_CONNECTION=mysql

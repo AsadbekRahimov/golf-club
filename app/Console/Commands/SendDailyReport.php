@@ -239,19 +239,19 @@ class SendDailyReport extends Command
 
     protected function sendToTelegram(array $excelFiles, ?string $backupFile): void
     {
-        $chatId = config('telegram.admin_chat_id');
+        $channelId = config('telegram.channel_id');
         $token = config('telegram.bots.golfclub.token');
 
-        if (!$chatId || !$token) {
+        if (!$channelId || !$token) {
             throw new \Exception('Telegram credentials not configured');
         }
 
         $summary = $this->generateTextSummary();
-        $this->sendTelegramMessage($token, $chatId, $summary);
+        $this->sendTelegramMessage($token, $channelId, $summary);
 
         foreach ($excelFiles as $name => $filePath) {
             if (file_exists($filePath)) {
-                $this->sendTelegramDocument($token, $chatId, $filePath, $this->getFileCaption($name));
+                $this->sendTelegramDocument($token, $channelId, $filePath, $this->getFileCaption($name));
             }
         }
 
@@ -259,9 +259,9 @@ class SendDailyReport extends Command
             $fileSize = filesize($backupFile);
 
             if ($fileSize > 50 * 1024 * 1024) {
-                $this->sendTelegramMessage($token, $chatId, "⚠️ Бэкап слишком большой для отправки в Telegram ({$this->formatBytes($fileSize)}). Сохранён локально: " . basename($backupFile));
+                $this->sendTelegramMessage($token, $channelId, "⚠️ Бэкап слишком большой для отправки в Telegram ({$this->formatBytes($fileSize)}). Сохранён локально: " . basename($backupFile));
             } else {
-                $this->sendTelegramDocument($token, $chatId, $backupFile, "💾 Бэкап базы данных\n📅 " . $this->reportDate);
+                $this->sendTelegramDocument($token, $channelId, $backupFile, "💾 Бэкап базы данных\n📅 " . $this->reportDate);
             }
         }
 

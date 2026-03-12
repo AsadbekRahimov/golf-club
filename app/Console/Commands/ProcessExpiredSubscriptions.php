@@ -16,7 +16,12 @@ class ProcessExpiredSubscriptions extends Command
 
         $count = $subscriptionService->processExpired();
 
-        $this->info("Processed {$count} expired subscriptions.");
+        if ($count > 0) {
+            $this->info("Processed {$count} expired subscriptions.");
+            $this->info('Notifications sent to clients and admins.');
+        } else {
+            $this->info('No expired subscriptions found.');
+        }
 
         return 0;
     }

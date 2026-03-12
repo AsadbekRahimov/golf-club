@@ -290,7 +290,7 @@ REDIS_PORT=6379
 TELEGRAM_BOT_TOKEN=your_bot_token
 TELEGRAM_WEBHOOK_URL=https://yourdomain.com/telegram/webhook
 TELEGRAM_WEBHOOK_SECRET=your_secret_token
-TELEGRAM_ADMIN_CHAT_ID=your_admin_chat_id
+TELEGRAM_CHANNEL_ID=-1001234567890
 ```
 
 ### 5.4 Инициализация приложения

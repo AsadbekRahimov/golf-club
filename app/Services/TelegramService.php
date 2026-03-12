@@ -85,6 +85,33 @@ class TelegramService
         );
     }
 
+    public function notifySubscriptionExpired(Client $client, string $subscriptionType, ?\Carbon\Carbon $endDate = null): bool
+    {
+        $endDateText = $endDate ? $endDate->format('d.m.Y') : 'недавно';
+        
+        return $this->sendMessage(
+            $client->telegram_chat_id,
+            "❌ *Подписка истекла*\n\n" .
+            "Ваша подписка «{$subscriptionType}» истекла {$endDateText}.\n\n" .
+            "Для возобновления услуг оформите новую подписку в меню."
+        );
+    }
+
+    public function notifyAdminsAboutExpiredSubscription(Client $client, string $subscriptionType, ?\App\Models\Locker $locker = null): bool
+    {
+        $text = "🔴 *Подписка истекла*\n\n" .
+            "👤 {$client->display_name}\n" .
+            "📱 {$client->phone_number}\n" .
+            "🏷️ {$subscriptionType}\n" .
+            "📅 Дата окончания: " . now()->format('d.m.Y H:i');
+            
+        if ($locker) {
+            $text .= "\n🗄️ Шкаф #{$locker->locker_number} освобожден";
+        }
+
+        return $this->notifyAdmins($text);
+    }
+
     public function notifyBookingApproved(Client $client, string $details): bool
     {
         return $this->sendMessage(
@@ -107,12 +134,22 @@ class TelegramService
 
     public function notifyAdmins(string $message): bool
     {
-        $adminChatId = config('telegram.admin_chat_id');
+        $channelId = config('telegram.channel_id');
 
-        if (!$adminChatId) {
+        if (!$channelId) {
             return false;
         }
 
-        return $this->sendMessage((int) $adminChatId, $message);
+        // Format message for channel
+        $channelMessage = $this->formatForChannel($message);
+        
+        return $this->sendMessage($channelId, $channelMessage);
+    }
+
+    protected function formatForChannel(string $message): string
+    {
+        // Add channel-specific formatting for private channel
+        // No need for hashtags in private channel, just clean formatting
+        return $message;
     }
 }
