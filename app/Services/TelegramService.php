@@ -45,12 +45,15 @@ class TelegramService
 
     public function notifyClientApproved(Client $client): bool
     {
+        $keyboard = \App\Telegram\Keyboards\MainMenuKeyboard::make();
+        
         return $this->sendMessage(
             $client->telegram_chat_id,
             "✅ *Регистрация подтверждена!*\n\n" .
             "Добро пожаловать в Golf Club!\n" .
             "Теперь вам доступны все функции бота.\n\n" .
-            "Используйте /menu для перехода в главное меню."
+            "Выберите действие в меню:",
+            $keyboard
         );
     }
 

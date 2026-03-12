@@ -87,36 +87,39 @@ class CallbackHandler
         $now = Carbon::now();
         $buttons = [];
 
-        if ($now->day <= 15) {
-            $startOfMonth = $now->copy()->startOfMonth();
-            $label = $startOfMonth->translatedFormat('F Y');
-            $buttons[] = [['text' => "📅 {$label} (текущий)", 'callback_data' => "booking:start:{$serviceType}:{$startOfMonth->format('Y-m')}"]];
-        }
+        // Option 1: Start from today
+        $today = $now->copy();
+        $label = 'Сегодня (' . $today->format('d.m.Y') . ')';
+        $buttons[] = [['text' => "📅 {$label}", 'callback_data' => "booking:start:{$serviceType}:{$today->format('Y-m-d')}"]];
 
-        for ($i = 1; $i <= 3; $i++) {
-            $month = $now->copy()->addMonths($i)->startOfMonth();
-            $label = $month->translatedFormat('F Y');
-            $buttons[] = [['text' => "📅 {$label}", 'callback_data' => "booking:start:{$serviceType}:{$month->format('Y-m')}"]];
-        }
+        // Option 2: Start from next month
+        $nextMonth = $now->copy()->addMonth()->startOfMonth();
+        $label = $nextMonth->translatedFormat('F Y');
+        $buttons[] = [['text' => "📅 {$label}", 'callback_data' => "booking:start:{$serviceType}:{$nextMonth->format('Y-m-d')}"]];
+
+        // Option 3: Start from month after next
+        $monthAfterNext = $now->copy()->addMonths(2)->startOfMonth();
+        $label = $monthAfterNext->translatedFormat('F Y');
+        $buttons[] = [['text' => "📅 {$label}", 'callback_data' => "booking:start:{$serviceType}:{$monthAfterNext->format('Y-m-d')}"]];
 
         $buttons[] = [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']];
 
         $this->editMessage(
-            "{$title}\n{$extraInfo}\nВыберите месяц начала:",
+            "{$title}\n{$extraInfo}\nВыберите дату начала:",
             ['inline_keyboard' => $buttons]
         );
     }
 
-    protected function selectStartMonth(string $serviceType, string $yearMonth): void
+    protected function selectStartMonth(string $serviceType, string $date): void
     {
-        $startDate = Carbon::parse($yearMonth . '-01');
-        $startLabel = $startDate->translatedFormat('F Y');
+        $startDate = Carbon::parse($date);
+        $startLabel = $startDate->format('d.m.Y');
 
         $title = $serviceType === 'locker' ? '🗄️ *Аренда шкафа*' : '🏌️ *Бронь на тренировку*';
 
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => '1 месяц', 'callback_data' => "booking:duration:{$serviceType}:1:{$yearMonth}"]],
+                [['text' => '1 месяц', 'callback_data' => "booking:duration:{$serviceType}:1:{$date}"]],
                 [['text' => '⬅️ Назад', 'callback_data' => "booking:service:{$serviceType}"]],
             ],
         ];
@@ -129,10 +132,10 @@ class CallbackHandler
         );
     }
 
-    protected function selectDuration(string $serviceType, string $months, string $yearMonth): void
+    protected function selectDuration(string $serviceType, string $months, string $date): void
     {
         $months = (int) $months;
-        $startDate = Carbon::parse($yearMonth . '-01');
+        $startDate = Carbon::parse($date);
         $endDate = $startDate->copy()->addMonths($months)->subDay();
 
         $title = $serviceType === 'locker' ? '🗄️ *Подтверждение аренды шкафа*' : '🏌️ *Подтверждение брони на тренировку*';
@@ -140,7 +143,7 @@ class CallbackHandler
 
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:{$serviceType}:{$months}:{$yearMonth}"]],
+                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:{$serviceType}:{$months}:{$date}"]],
                 [['text' => '❌ Отмена', 'callback_data' => 'booking:cancel']],
             ],
         ];
@@ -164,10 +167,10 @@ class CallbackHandler
 
         $serviceType = $params[0] ?? '';
         $months = (int) ($params[1] ?? 1);
-        $yearMonth = $params[2] ?? null;
+        $date = $params[2] ?? null;
 
         $serviceEnum = $serviceType === 'locker' ? ServiceType::LOCKER : ServiceType::TRAINING;
-        $startDate = $yearMonth ? Carbon::parse($yearMonth . '-01') : null;
+        $startDate = $date ? Carbon::parse($date) : null;
 
         $booking = BookingRequest::create([
             'client_id' => $this->client->id,
