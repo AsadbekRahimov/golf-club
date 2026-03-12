@@ -3,7 +3,6 @@
 namespace Database\Factories;
 
 use App\Enums\BookingStatus;
-use App\Enums\GameSubscriptionType;
 use App\Enums\ServiceType;
 use App\Models\BookingRequest;
 use App\Models\Client;
@@ -17,10 +16,8 @@ class BookingRequestFactory extends Factory
     {
         return [
             'client_id' => Client::factory()->approved(),
-            'service_type' => ServiceType::GAME,
-            'game_subscription_type' => GameSubscriptionType::ONCE,
-            'locker_duration_months' => null,
-            'total_price' => 50.00,
+            'service_type' => ServiceType::LOCKER,
+            'locker_duration_months' => 1,
             'status' => BookingStatus::PENDING,
         ];
     }
@@ -29,19 +26,15 @@ class BookingRequestFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'service_type' => ServiceType::LOCKER,
-            'game_subscription_type' => null,
             'locker_duration_months' => $months,
-            'total_price' => 10.00 * $months,
         ]);
     }
 
-    public function forBoth(): static
+    public function forTraining(int $months = 1): static
     {
         return $this->state(fn (array $attributes) => [
-            'service_type' => ServiceType::BOTH,
-            'game_subscription_type' => GameSubscriptionType::MONTHLY,
-            'locker_duration_months' => 1,
-            'total_price' => 210.00,
+            'service_type' => ServiceType::TRAINING,
+            'locker_duration_months' => $months,
         ]);
     }
 
@@ -49,14 +42,6 @@ class BookingRequestFactory extends Factory
     {
         return $this->state(fn (array $attributes) => [
             'status' => BookingStatus::APPROVED,
-            'processed_at' => now(),
-        ]);
-    }
-
-    public function paymentRequired(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'status' => BookingStatus::PAYMENT_REQUIRED,
             'processed_at' => now(),
         ]);
     }

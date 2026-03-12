@@ -20,7 +20,6 @@ class SubscriptionService
     public function create(
         Client $client,
         SubscriptionType $type,
-        float $price,
         ?\Carbon\Carbon $endDate = null,
         ?int $bookingRequestId = null,
         ?Locker $locker = null
@@ -32,7 +31,6 @@ class SubscriptionService
             'locker_id' => $locker?->id,
             'start_date' => now(),
             'end_date' => $endDate,
-            'price' => $price,
             'status' => SubscriptionStatus::ACTIVE,
         ]);
     }
@@ -57,13 +55,8 @@ class SubscriptionService
             ? $subscription->end_date->addMonths($months)
             : now()->addMonths($months);
 
-        $additionalPrice = $subscription->isLocker()
-            ? Setting::getLockerMonthlyPrice() * $months
-            : Setting::getGameMonthlyPrice() * $months;
-
         $subscription->update([
             'end_date' => $newEndDate,
-            'price' => $subscription->price + $additionalPrice,
         ]);
 
         return $subscription->fresh();
@@ -118,13 +111,6 @@ class SubscriptionService
             ->get();
     }
 
-    public function hasActiveGameSubscription(Client $client): bool
-    {
-        return $client->activeSubscriptions()
-            ->gameSubscriptions()
-            ->exists();
-    }
-
     public function hasActiveLockerSubscription(Client $client): bool
     {
         return $client->activeSubscriptions()
@@ -132,13 +118,19 @@ class SubscriptionService
             ->exists();
     }
 
+    public function hasActiveTrainingSubscription(Client $client): bool
+    {
+        return $client->activeSubscriptions()
+            ->trainingSubscriptions()
+            ->exists();
+    }
+
     public function getStatistics(): array
     {
         return [
             'active_total' => Subscription::active()->count(),
-            'active_game_once' => Subscription::active()->ofType(SubscriptionType::GAME_ONCE)->count(),
-            'active_game_monthly' => Subscription::active()->ofType(SubscriptionType::GAME_MONTHLY)->count(),
             'active_locker' => Subscription::active()->ofType(SubscriptionType::LOCKER)->count(),
+            'active_training' => Subscription::active()->ofType(SubscriptionType::TRAINING)->count(),
             'expiring_soon' => Subscription::expiring()->count(),
         ];
     }

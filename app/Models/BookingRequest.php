@@ -3,7 +3,6 @@
 namespace App\Models;
 
 use App\Enums\BookingStatus;
-use App\Enums\GameSubscriptionType;
 use App\Enums\ServiceType;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -19,7 +18,6 @@ class BookingRequest extends Model
     protected $fillable = [
         'client_id',
         'service_type',
-        'game_subscription_type',
         'locker_duration_months',
         'locker_start_date',
         'status',
@@ -30,7 +28,6 @@ class BookingRequest extends Model
 
     protected $casts = [
         'service_type' => ServiceType::class,
-        'game_subscription_type' => GameSubscriptionType::class,
         'status' => BookingStatus::class,
         'locker_duration_months' => 'integer',
         'locker_start_date' => 'date',
@@ -69,20 +66,14 @@ class BookingRequest extends Model
         return $this->belongsTo(User::class, 'processed_by');
     }
 
-    public function hasGame(): bool
+    public function isLocker(): bool
     {
-        return in_array($this->service_type, [
-            ServiceType::GAME,
-            ServiceType::BOTH,
-        ]);
+        return $this->service_type === ServiceType::LOCKER;
     }
 
-    public function hasLocker(): bool
+    public function isTraining(): bool
     {
-        return in_array($this->service_type, [
-            ServiceType::LOCKER,
-            ServiceType::BOTH,
-        ]);
+        return $this->service_type === ServiceType::TRAINING;
     }
 
     public function approve(User $admin): void

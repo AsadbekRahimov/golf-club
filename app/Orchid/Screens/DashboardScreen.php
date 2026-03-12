@@ -335,9 +335,8 @@ class DashboardScreen extends Screen
     protected function getSubscriptionsByType(): array
     {
         $data = [
-            'Разовая игра' => Subscription::active()->where('subscription_type', SubscriptionType::GAME_ONCE)->count(),
-            'Месячная игра' => Subscription::active()->where('subscription_type', SubscriptionType::GAME_MONTHLY)->count(),
             'Аренда шкафа' => Subscription::active()->where('subscription_type', SubscriptionType::LOCKER)->count(),
+            'Тренировка' => Subscription::active()->where('subscription_type', SubscriptionType::TRAINING)->count(),
         ];
 
         return $this->toChartDataset($data, 'Подписки');

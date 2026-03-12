@@ -3,7 +3,6 @@
 namespace App\Services;
 
 use App\Enums\BookingStatus;
-use App\Enums\GameSubscriptionType;
 use App\Enums\ServiceType;
 use App\Enums\SubscriptionStatus;
 use App\Enums\SubscriptionType;
@@ -23,11 +22,10 @@ class BookingService
     public function create(
         Client $client,
         ServiceType $serviceType,
-        ?GameSubscriptionType $gameType = null,
-        ?int $lockerMonths = null,
-        ?Carbon $lockerStartDate = null
+        ?int $months = null,
+        ?Carbon $startDate = null
     ): BookingRequest {
-        if (in_array($serviceType, [ServiceType::LOCKER, ServiceType::BOTH])) {
+        if ($serviceType === ServiceType::LOCKER) {
             if (Locker::availableCount() === 0) {
                 throw new \Exception('Нет свободных шкафов');
             }
@@ -36,9 +34,8 @@ class BookingService
         $booking = BookingRequest::create([
             'client_id' => $client->id,
             'service_type' => $serviceType,
-            'game_subscription_type' => $gameType,
-            'locker_duration_months' => $lockerMonths,
-            'locker_start_date' => $lockerStartDate,
+            'locker_duration_months' => $months,
+            'locker_start_date' => $startDate,
             'status' => BookingStatus::PENDING,
         ]);
 
@@ -87,33 +84,14 @@ class BookingService
     protected function activateSubscriptions(BookingRequest $booking): void
     {
         $client = $booking->client;
+        $months = $booking->locker_duration_months ?? 1;
+        $startDate = $booking->locker_start_date ?? now();
 
-        if ($booking->hasGame()) {
-            $subscriptionType = $booking->game_subscription_type === GameSubscriptionType::ONCE
-                ? SubscriptionType::GAME_ONCE
-                : SubscriptionType::GAME_MONTHLY;
-
-            $endDate = $subscriptionType === SubscriptionType::GAME_MONTHLY
-                ? now()->addMonth()
-                : null;
-
-            Subscription::create([
-                'client_id' => $client->id,
-                'booking_request_id' => $booking->id,
-                'subscription_type' => $subscriptionType,
-                'start_date' => now(),
-                'end_date' => $endDate,
-                'status' => SubscriptionStatus::ACTIVE,
-            ]);
-        }
-
-        if ($booking->hasLocker()) {
+        if ($booking->isLocker()) {
             $locker = Locker::getFirstAvailable();
 
             if ($locker) {
                 $locker->occupy();
-                $months = $booking->locker_duration_months ?? 1;
-                $startDate = $booking->locker_start_date ?? now();
 
                 Subscription::create([
                     'client_id' => $client->id,
@@ -126,19 +104,26 @@ class BookingService
                 ]);
             }
         }
+
+        if ($booking->isTraining()) {
+            Subscription::create([
+                'client_id' => $client->id,
+                'booking_request_id' => $booking->id,
+                'subscription_type' => SubscriptionType::TRAINING,
+                'start_date' => $startDate,
+                'end_date' => $startDate->copy()->addMonths($months),
+                'status' => SubscriptionStatus::ACTIVE,
+            ]);
+        }
     }
 
     protected function buildBookingDetails(BookingRequest $booking): string
     {
         $details = "Услуга: {$booking->service_type->label()}\n";
+        $months = $booking->locker_duration_months ?? 1;
+        $details .= "Срок: {$months} мес.\n";
 
-        if ($booking->hasGame()) {
-            $details .= "Тип игры: {$booking->game_subscription_type->label()}\n";
-        }
-
-        if ($booking->hasLocker()) {
-            $details .= "Шкаф: на {$booking->locker_duration_months} мес.\n";
-
+        if ($booking->isLocker()) {
             $lockerSubscription = $booking->client
                 ->activeSubscriptions()
                 ->lockerSubscriptions()
@@ -148,10 +133,10 @@ class BookingService
             if ($lockerSubscription?->locker) {
                 $details .= "Номер шкафа: #{$lockerSubscription->locker->locker_number}\n";
             }
+        }
 
-            if ($booking->locker_start_date) {
-                $details .= "Начало аренды: {$booking->locker_start_date->format('d.m.Y')}\n";
-            }
+        if ($booking->locker_start_date) {
+            $details .= "Начало: {$booking->locker_start_date->format('d.m.Y')}\n";
         }
 
         return $details;
