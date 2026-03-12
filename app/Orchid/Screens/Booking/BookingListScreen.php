@@ -22,7 +22,7 @@ class BookingListScreen extends Screen
     {
         return [
             'bookings' => BookingRequest::with('client')
-                ->filters()
+                ->filters([BookingStatusFilter::class, BookingServiceTypeFilter::class])
                 ->defaultSort('created_at', 'desc')
                 ->paginate(15),
         ];

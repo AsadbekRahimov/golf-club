@@ -47,6 +47,7 @@ class ClientCreateScreen extends Screen
             Layout::rows([
                 Input::make('client.phone_number')
                     ->title('Номер телефона')
+                    ->mask('+998 99 999-99-99')
                     ->placeholder('+998 90 123-45-67')
                     ->required()
                     ->help('Обязательное поле. При регистрации через Telegram клиент будет автоматически привязан по этому номеру.'),

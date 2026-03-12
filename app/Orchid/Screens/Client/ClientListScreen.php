@@ -22,7 +22,7 @@ class ClientListScreen extends Screen
     public function query(): iterable
     {
         return [
-            'clients' => Client::filters()
+            'clients' => Client::filters([ClientSearchFilter::class, ClientStatusFilter::class])
                 ->defaultSort('created_at', 'desc')
                 ->paginate(15),
         ];

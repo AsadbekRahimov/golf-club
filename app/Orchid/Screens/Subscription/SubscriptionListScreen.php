@@ -34,7 +34,7 @@ class SubscriptionListScreen extends Screen
     {
         return [
             'subscriptions' => Subscription::with(['client', 'locker'])
-                ->filters()
+                ->filters([SubscriptionStatusFilter::class, SubscriptionTypeFilter::class])
                 ->defaultSort('created_at', 'desc')
                 ->paginate(15),
         ];

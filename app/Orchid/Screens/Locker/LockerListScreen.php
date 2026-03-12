@@ -41,7 +41,7 @@ class LockerListScreen extends Screen
     {
         return [
             'lockers' => Locker::with('activeSubscription.client')
-                ->filters()
+                ->filters([LockerStatusFilter::class])
                 ->defaultSort('locker_number')
                 ->paginate(20),
         ];
@@ -134,10 +134,12 @@ class LockerListScreen extends Screen
 
                 TD::make('days_remaining', 'Осталось')
                     ->render(function (Locker $l) {
-                        $days = $l->activeSubscription?->days_remaining;
-                        if ($days === null) return '-';
+                        $sub = $l->activeSubscription;
+                        if (!$sub || $sub->days_remaining === null) return '-';
+                        $days  = $sub->days_remaining;
+                        $until = $sub->end_date->format('d.m.Y');
                         $color = $days <= 3 ? 'danger' : ($days <= 7 ? 'warning' : 'success');
-                        return "<span class='badge bg-{$color}'>{$days} дн.</span>";
+                        return "<span class='badge bg-{$color}'>{$days} дн.</span><br><small class='text-muted'>до {$until}</small>";
                     }),
 
                 TD::make('description', 'Описание'),
