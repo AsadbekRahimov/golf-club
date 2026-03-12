@@ -4,9 +4,9 @@ namespace App\Telegram\Keyboards;
 
 class MainMenuKeyboard
 {
-    public static function make(): string
+    public static function make(): array
     {
-        return json_encode([
+        return [
             'keyboard' => [
                 [
                     ['text' => '📋 Мои подписки'],
@@ -18,6 +18,6 @@ class MainMenuKeyboard
                 ],
             ],
             'resize_keyboard' => true,
-        ]);
+        ];
     }
 }

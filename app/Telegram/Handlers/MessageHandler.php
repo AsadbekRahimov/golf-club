@@ -236,7 +236,7 @@ class MessageHandler
             'chat_id' => $this->getChatId(),
             'text' => "🏌️ *Главное меню*\n\nВыберите действие:",
             'parse_mode' => 'Markdown',
-            'reply_markup' => $keyboard,
+            'reply_markup' => json_encode($keyboard),
         ]);
     }
 
