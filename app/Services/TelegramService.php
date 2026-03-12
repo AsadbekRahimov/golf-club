@@ -18,7 +18,7 @@ class TelegramService
         }
     }
 
-    public function sendMessage(int $chatId, string $text, ?array $keyboard = null): bool
+    public function sendMessage(int|string $chatId, string $text, ?array $keyboard = null): bool
     {
         if (!isset($this->telegram)) {
             return false;
