@@ -64,13 +64,11 @@ class BookingEditScreen extends Screen
             Sight::make('client.phone_number', 'Телефон'),
             Sight::make('service_type', 'Тип услуги')
                 ->render(fn (BookingRequest $b) => $b->service_type->label()),
-            Sight::make('game_subscription_type', 'Тип подписки на игру')
-                ->render(fn (BookingRequest $b) => $b->game_subscription_type?->label() ?? '-'),
-            Sight::make('locker_duration_months', 'Срок аренды шкафа')
+            Sight::make('locker_duration_months', 'Срок (мес.)')
                 ->render(fn (BookingRequest $b) => $b->locker_duration_months
                     ? "{$b->locker_duration_months} мес."
                     : '-'),
-            Sight::make('locker_start_date', 'Начало аренды шкафа')
+            Sight::make('locker_start_date', 'Дата начала')
                 ->render(fn (BookingRequest $b) => $b->locker_start_date?->format('d.m.Y') ?? '-'),
             Sight::make('created_at', 'Дата создания')
                 ->render(fn (BookingRequest $b) => $b->created_at->format('d.m.Y H:i')),

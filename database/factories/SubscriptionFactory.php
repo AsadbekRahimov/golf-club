@@ -16,21 +16,11 @@ class SubscriptionFactory extends Factory
     {
         return [
             'client_id' => Client::factory()->approved(),
-            'subscription_type' => SubscriptionType::GAME_ONCE,
+            'subscription_type' => SubscriptionType::LOCKER,
             'start_date' => now(),
-            'end_date' => null,
-            'price' => 50.00,
+            'end_date' => now()->addMonth(),
             'status' => SubscriptionStatus::ACTIVE,
         ];
-    }
-
-    public function gameMonthly(): static
-    {
-        return $this->state(fn (array $attributes) => [
-            'subscription_type' => SubscriptionType::GAME_MONTHLY,
-            'end_date' => now()->addMonth(),
-            'price' => 200.00,
-        ]);
     }
 
     public function locker(): static
@@ -38,7 +28,14 @@ class SubscriptionFactory extends Factory
         return $this->state(fn (array $attributes) => [
             'subscription_type' => SubscriptionType::LOCKER,
             'end_date' => now()->addMonth(),
-            'price' => 10.00,
+        ]);
+    }
+
+    public function training(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'subscription_type' => SubscriptionType::TRAINING,
+            'end_date' => now()->addMonth(),
         ]);
     }
 

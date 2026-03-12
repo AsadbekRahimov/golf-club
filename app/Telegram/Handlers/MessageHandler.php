@@ -289,9 +289,8 @@ class MessageHandler
     {
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => '🏌️ Подписка на игру', 'callback_data' => 'booking:service:game']],
                 [['text' => '🗄️ Аренда шкафа', 'callback_data' => 'booking:service:locker']],
-                [['text' => '📦 Комплексный пакет', 'callback_data' => 'booking:service:both']],
+                [['text' => '🏌️ Бронь на тренировку', 'callback_data' => 'booking:service:training']],
                 [['text' => '❌ Отмена', 'callback_data' => 'booking:cancel']],
             ],
         ];

@@ -3,7 +3,6 @@
 namespace App\Telegram\Handlers;
 
 use App\Enums\BookingStatus;
-use App\Enums\GameSubscriptionType;
 use App\Enums\ServiceType;
 use App\Models\BookingRequest;
 use App\Models\Client;
@@ -45,11 +44,9 @@ class CallbackHandler
 
         match ($step) {
             'service' => $this->selectService($params[1] ?? ''),
-            'game_type' => $this->selectGameType($params[1] ?? ''),
-            'locker_start' => $this->selectLockerStartMonth($params[1] ?? ''),
-            'locker_duration' => $this->selectLockerDuration($params[1] ?? '', $params[2] ?? ''),
+            'start' => $this->selectStartMonth($params[1] ?? '', $params[2] ?? ''),
+            'duration' => $this->selectDuration($params[1] ?? '', $params[2] ?? '', $params[3] ?? ''),
             'confirm' => $this->confirmBooking(array_slice($params, 1)),
-            'both_confirm' => $this->confirmBothBooking($params[1] ?? ''),
             'cancel' => $this->cancelBooking(),
             default => null,
         };
@@ -58,195 +55,112 @@ class CallbackHandler
     protected function selectService(string $service): void
     {
         match ($service) {
-            'game' => $this->showGameOptions(),
-            'locker' => $this->showLockerStartOptions(),
-            'both' => $this->showBothOptions(),
+            'locker' => $this->showStartOptions('locker'),
+            'training' => $this->showStartOptions('training'),
             default => null,
         };
     }
 
-    protected function showGameOptions(): void
+    protected function showStartOptions(string $serviceType): void
     {
-        $keyboard = [
-            'inline_keyboard' => [
-                [['text' => '🎯 Единоразовая', 'callback_data' => 'booking:game_type:once']],
-                [['text' => '📅 Ежемесячная', 'callback_data' => 'booking:game_type:monthly']],
-                [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
-            ],
-        ];
+        if ($serviceType === 'locker') {
+            $available = Locker::availableCount();
 
-        $this->editMessage(
-            "🏌️ *Подписка на игру*\n\nВыберите тип подписки:",
-            $keyboard
-        );
-    }
-
-    protected function selectGameType(string $type): void
-    {
-        $gameType = $type === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY;
-
-        $keyboard = [
-            'inline_keyboard' => [
-                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:game:{$type}"]],
-                [['text' => '❌ Отмена', 'callback_data' => 'booking:cancel']],
-            ],
-        ];
-
-        $this->editMessage(
-            "🏌️ *Подтверждение бронирования*\n\n" .
-            "Услуга: {$gameType->label()} подписка на игру\n\n" .
-            "Подтвердить бронирование?",
-            $keyboard
-        );
-    }
-
-    protected function showLockerStartOptions(): void
-    {
-        $available = Locker::availableCount();
-
-        if ($available === 0) {
-            $this->editMessage(
-                "🗄️ *Аренда шкафа*\n\n" .
-                "К сожалению, все шкафы заняты.\n" .
-                "Пожалуйста, попробуйте позже.",
-                [
-                    'inline_keyboard' => [
-                        [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
-                    ],
-                ]
-            );
-            return;
+            if ($available === 0) {
+                $this->editMessage(
+                    "🗄️ *Аренда шкафа*\n\n" .
+                    "К сожалению, все шкафы заняты.\n" .
+                    "Пожалуйста, попробуйте позже.",
+                    [
+                        'inline_keyboard' => [
+                            [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
+                        ],
+                    ]
+                );
+                return;
+            }
         }
+
+        $title = $serviceType === 'locker' ? '🗄️ *Аренда шкафа*' : '🏌️ *Бронь на тренировку*';
+        $extraInfo = $serviceType === 'locker' ? "\nДоступно шкафов: " . Locker::availableCount() . "\n" : '';
 
         $now = Carbon::now();
         $buttons = [];
 
-        // Current month (if not past 15th)
         if ($now->day <= 15) {
             $startOfMonth = $now->copy()->startOfMonth();
             $label = $startOfMonth->translatedFormat('F Y');
-            $buttons[] = [['text' => "📅 {$label} (текущий)", 'callback_data' => "booking:locker_start:{$startOfMonth->format('Y-m')}"]];
+            $buttons[] = [['text' => "📅 {$label} (текущий)", 'callback_data' => "booking:start:{$serviceType}:{$startOfMonth->format('Y-m')}"]];
         }
 
-        // Next 3 months
         for ($i = 1; $i <= 3; $i++) {
             $month = $now->copy()->addMonths($i)->startOfMonth();
             $label = $month->translatedFormat('F Y');
-            $buttons[] = [['text' => "📅 {$label}", 'callback_data' => "booking:locker_start:{$month->format('Y-m')}"]];
+            $buttons[] = [['text' => "📅 {$label}", 'callback_data' => "booking:start:{$serviceType}:{$month->format('Y-m')}"]];
         }
 
         $buttons[] = [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']];
 
         $this->editMessage(
-            "🗄️ *Аренда шкафа*\n\n" .
-            "Доступно шкафов: {$available}\n\n" .
-            "Выберите месяц начала аренды:",
+            "{$title}\n{$extraInfo}\nВыберите месяц начала:",
             ['inline_keyboard' => $buttons]
         );
     }
 
-    protected function selectLockerStartMonth(string $yearMonth): void
+    protected function selectStartMonth(string $serviceType, string $yearMonth): void
     {
         $startDate = Carbon::parse($yearMonth . '-01');
         $startLabel = $startDate->translatedFormat('F Y');
 
+        $title = $serviceType === 'locker' ? '🗄️ *Аренда шкафа*' : '🏌️ *Бронь на тренировку*';
+
+        $durationButtons = $serviceType === 'locker'
+            ? [
+                [['text' => '1 месяц', 'callback_data' => "booking:duration:{$serviceType}:1:{$yearMonth}"]],
+                [['text' => '3 месяца', 'callback_data' => "booking:duration:{$serviceType}:3:{$yearMonth}"]],
+                [['text' => '6 месяцев', 'callback_data' => "booking:duration:{$serviceType}:6:{$yearMonth}"]],
+                [['text' => '12 месяцев', 'callback_data' => "booking:duration:{$serviceType}:12:{$yearMonth}"]],
+            ]
+            : [
+                [['text' => '1 месяц', 'callback_data' => "booking:duration:{$serviceType}:1:{$yearMonth}"]],
+            ];
+
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => '1 месяц', 'callback_data' => "booking:locker_duration:1:{$yearMonth}"]],
-                [['text' => '3 месяца', 'callback_data' => "booking:locker_duration:3:{$yearMonth}"]],
-                [['text' => '6 месяцев', 'callback_data' => "booking:locker_duration:6:{$yearMonth}"]],
-                [['text' => '12 месяцев', 'callback_data' => "booking:locker_duration:12:{$yearMonth}"]],
-                [['text' => '⬅️ Назад', 'callback_data' => 'booking:service:locker']],
+                ...$durationButtons,
+                [['text' => '⬅️ Назад', 'callback_data' => "booking:service:{$serviceType}"]],
             ],
         ];
 
         $this->editMessage(
-            "🗄️ *Аренда шкафа*\n\n" .
+            "{$title}\n\n" .
             "Начало: *{$startLabel}*\n\n" .
-            "Выберите срок аренды (мин. 1 месяц):",
+            "Выберите срок (мин. 1 месяц):",
             $keyboard
         );
     }
 
-    protected function selectLockerDuration(string $months, string $yearMonth): void
+    protected function selectDuration(string $serviceType, string $months, string $yearMonth): void
     {
         $months = (int) $months;
         $startDate = Carbon::parse($yearMonth . '-01');
         $endDate = $startDate->copy()->addMonths($months)->subDay();
 
+        $title = $serviceType === 'locker' ? '🗄️ *Подтверждение аренды шкафа*' : '🏌️ *Подтверждение брони на тренировку*';
+        $serviceLabel = $serviceType === 'locker' ? 'Аренда шкафа' : 'Бронь на тренировку';
+
         $keyboard = [
             'inline_keyboard' => [
-                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:locker:{$months}:{$yearMonth}"]],
+                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:{$serviceType}:{$months}:{$yearMonth}"]],
                 [['text' => '❌ Отмена', 'callback_data' => 'booking:cancel']],
             ],
         ];
 
         $this->editMessage(
-            "🗄️ *Подтверждение бронирования*\n\n" .
-            "Услуга: Аренда шкафа\n" .
+            "{$title}\n\n" .
+            "Услуга: {$serviceLabel}\n" .
             "Срок: {$months} мес.\n" .
             "Период: {$startDate->format('d.m.Y')} — {$endDate->format('d.m.Y')}\n\n" .
-            "Подтвердить бронирование?",
-            $keyboard
-        );
-    }
-
-    protected function showBothOptions(): void
-    {
-        $available = Locker::availableCount();
-
-        if ($available === 0) {
-            $this->editMessage(
-                "📦 *Комплексный пакет*\n\n" .
-                "К сожалению, шкафы недоступны.\n" .
-                "Вы можете оформить только подписку на игру.",
-                [
-                    'inline_keyboard' => [
-                        [['text' => '🏌️ Только игра', 'callback_data' => 'booking:service:game']],
-                        [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
-                    ],
-                ]
-            );
-            return;
-        }
-
-        $keyboard = [
-            'inline_keyboard' => [
-                [['text' => '🎯 Единоразовая игра + шкаф', 'callback_data' => 'booking:both_confirm:once']],
-                [['text' => '📅 Ежемесячная игра + шкаф', 'callback_data' => 'booking:both_confirm:monthly']],
-                [['text' => '⬅️ Назад', 'callback_data' => 'booking:cancel']],
-            ],
-        ];
-
-        $this->editMessage(
-            "📦 *Комплексный пакет*\n\n" .
-            "Выберите тип подписки на игру:\n" .
-            "(Шкаф будет арендован на 1 месяц)",
-            $keyboard
-        );
-    }
-
-    protected function confirmBothBooking(string $gameType): void
-    {
-        if (!$this->client) {
-            $this->sendAuthError();
-            return;
-        }
-
-        $gameTypeEnum = $gameType === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY;
-
-        $keyboard = [
-            'inline_keyboard' => [
-                [['text' => '✅ Подтвердить', 'callback_data' => "booking:confirm:both:{$gameType}"]],
-                [['text' => '❌ Отмена', 'callback_data' => 'booking:cancel']],
-            ],
-        ];
-
-        $this->editMessage(
-            "📦 *Подтверждение бронирования*\n\n" .
-            "Услуга: Комплексный пакет\n" .
-            "Игра: {$gameTypeEnum->label()} подписка\n" .
-            "Шкаф: 1 мес.\n\n" .
             "Подтвердить бронирование?",
             $keyboard
         );
@@ -259,18 +173,18 @@ class CallbackHandler
             return;
         }
 
-        $service = $params[0] ?? '';
-        $option = $params[1] ?? '';
+        $serviceType = $params[0] ?? '';
+        $months = (int) ($params[1] ?? 1);
         $yearMonth = $params[2] ?? null;
 
-        $bookingData = $this->buildBookingData($service, $option, $yearMonth);
+        $serviceEnum = $serviceType === 'locker' ? ServiceType::LOCKER : ServiceType::TRAINING;
+        $startDate = $yearMonth ? Carbon::parse($yearMonth . '-01') : null;
 
         $booking = BookingRequest::create([
             'client_id' => $this->client->id,
-            'service_type' => $bookingData['service_type'],
-            'game_subscription_type' => $bookingData['game_type'],
-            'locker_duration_months' => $bookingData['locker_months'],
-            'locker_start_date' => $bookingData['locker_start_date'],
+            'service_type' => $serviceEnum,
+            'locker_duration_months' => $months,
+            'locker_start_date' => $startDate,
             'status' => BookingStatus::PENDING,
         ]);
 
@@ -283,36 +197,6 @@ class CallbackHandler
         );
 
         $this->notifyAdminsAboutBooking($booking);
-    }
-
-    protected function buildBookingData(string $service, string $option, ?string $yearMonth = null): array
-    {
-        return match ($service) {
-            'game' => [
-                'service_type' => ServiceType::GAME,
-                'game_type' => $option === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY,
-                'locker_months' => null,
-                'locker_start_date' => null,
-            ],
-            'locker' => [
-                'service_type' => ServiceType::LOCKER,
-                'game_type' => null,
-                'locker_months' => (int) $option,
-                'locker_start_date' => $yearMonth ? Carbon::parse($yearMonth . '-01') : null,
-            ],
-            'both' => [
-                'service_type' => ServiceType::BOTH,
-                'game_type' => $option === 'once' ? GameSubscriptionType::ONCE : GameSubscriptionType::MONTHLY,
-                'locker_months' => 1,
-                'locker_start_date' => null,
-            ],
-            default => [
-                'service_type' => ServiceType::GAME,
-                'game_type' => GameSubscriptionType::ONCE,
-                'locker_months' => null,
-                'locker_start_date' => null,
-            ],
-        };
     }
 
     protected function cancelBooking(): void
@@ -339,7 +223,7 @@ class CallbackHandler
             "🕐 {$booking->created_at->format('d.m.Y H:i')}";
 
         if ($booking->locker_start_date) {
-            $text .= "\n📅 Начало аренды: {$booking->locker_start_date->format('d.m.Y')}";
+            $text .= "\n📅 Начало: {$booking->locker_start_date->format('d.m.Y')}";
         }
 
         if ($booking->locker_duration_months) {

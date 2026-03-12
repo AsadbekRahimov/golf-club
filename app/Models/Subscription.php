@@ -75,17 +75,14 @@ class Subscription extends Model
         return $query->where('subscription_type', $type);
     }
 
-    public function scopeGameSubscriptions($query)
-    {
-        return $query->whereIn('subscription_type', [
-            SubscriptionType::GAME_ONCE,
-            SubscriptionType::GAME_MONTHLY,
-        ]);
-    }
-
     public function scopeLockerSubscriptions($query)
     {
         return $query->where('subscription_type', SubscriptionType::LOCKER);
+    }
+
+    public function scopeTrainingSubscriptions($query)
+    {
+        return $query->where('subscription_type', SubscriptionType::TRAINING);
     }
 
     public function client(): BelongsTo
@@ -132,12 +129,9 @@ class Subscription extends Model
         return $this->subscription_type === SubscriptionType::LOCKER;
     }
 
-    public function isGame(): bool
+    public function isTraining(): bool
     {
-        return in_array($this->subscription_type, [
-            SubscriptionType::GAME_ONCE,
-            SubscriptionType::GAME_MONTHLY,
-        ]);
+        return $this->subscription_type === SubscriptionType::TRAINING;
     }
 
     public function expire(): void
