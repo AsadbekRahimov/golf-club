@@ -1,10 +1,13 @@
 <?php
 
 use App\Http\Controllers\Telegram\WebhookController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('welcome');
+    return Auth::check()
+        ? redirect('/admin')
+        : redirect('/admin/login');
 });
 
 // Telegram Webhook
