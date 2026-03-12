@@ -117,11 +117,18 @@ class CallbackHandler
 
         $title = $serviceType === 'locker' ? '🗄️ *Аренда шкафа*' : '🏌️ *Бронь на тренировку*';
 
+        $rows = [];
+        for ($i = 1; $i <= 12; $i += 3) {
+            $row = [];
+            for ($j = $i; $j < $i + 3 && $j <= 12; $j++) {
+                $row[] = ['text' => "{$j} мес.", 'callback_data' => "booking:duration:{$serviceType}:{$j}:{$date}"];
+            }
+            $rows[] = $row;
+        }
+        $rows[] = [['text' => '⬅️ Назад', 'callback_data' => "booking:service:{$serviceType}"]];
+
         $keyboard = [
-            'inline_keyboard' => [
-                [['text' => '1 месяц', 'callback_data' => "booking:duration:{$serviceType}:1:{$date}"]],
-                [['text' => '⬅️ Назад', 'callback_data' => "booking:service:{$serviceType}"]],
-            ],
+            'inline_keyboard' => $rows,
         ];
 
         $this->editMessage(
