@@ -58,6 +58,15 @@ class BookingService
 
         $details = $this->buildBookingDetails($booking);
         $this->telegramService->notifyBookingApproved($booking->client, $details);
+
+        $this->telegramService->notifyAdmins(
+            "✅ *Бронирование подтверждено*\n\n" .
+            "👤 {$booking->client->display_name}\n" .
+            "📱 {$booking->client->phone_number}\n" .
+            "🏷️ {$booking->service_type->label()}\n" .
+            "🗓 Срок: " . ($booking->locker_duration_months ?? 1) . " мес.\n" .
+            "👨‍💼 Админ: {$admin->name}"
+        );
     }
 
     public function reject(BookingRequest $booking, User $admin, ?string $reason = null): void
