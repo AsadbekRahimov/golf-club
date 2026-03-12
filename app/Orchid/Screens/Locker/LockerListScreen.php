@@ -7,11 +7,13 @@ use App\Enums\SubscriptionStatus;
 use App\Enums\SubscriptionType;
 use App\Models\Client;
 use App\Models\Locker;
+use App\Orchid\Filters\LockerStatusFilter;
 use App\Models\Subscription;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
+use Orchid\Screen\Actions\ModalToggle;
 use Orchid\Screen\Fields\DateTimer;
 use Orchid\Screen\Fields\Input;
 use Orchid\Screen\Fields\Select;
@@ -53,9 +55,10 @@ class LockerListScreen extends Screen
                 ->href(route('platform.export.lockers'))
                 ->type(Color::SUCCESS),
 
-            Button::make('Добавить шкафы')
+            ModalToggle::make('Добавить шкафы')
                 ->icon('bs.plus')
                 ->type(Color::PRIMARY)
+                ->modal('addLockersModal')
                 ->method('addLockers'),
         ];
     }
@@ -63,13 +66,17 @@ class LockerListScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Layout::rows([
-                Input::make('count')
-                    ->type('number')
-                    ->title('Количество новых шкафов')
-                    ->value(10)
-                    ->help('Шкафы будут созданы с автоматической нумерацией'),
-            ])->title('Добавить шкафы'),
+            Layout::selection([LockerStatusFilter::class]),
+
+            Layout::modal('addLockersModal', [
+                Layout::rows([
+                    Input::make('count')
+                        ->type('number')
+                        ->title('Количество новых шкафов')
+                        ->value(10)
+                        ->help('Шкафы будут созданы с автоматической нумерацией'),
+                ]),
+            ])->title('Добавить шкафы')->applyButton('Добавить'),
 
             Layout::rows([
                 Select::make('assign_client_id')
@@ -85,7 +92,7 @@ class LockerListScreen extends Screen
                 DateTimer::make('assign_start_date')
                     ->title('Дата начала аренды')
                     ->format('Y-m-d')
-                    ->value(now()->startOfMonth()->format('Y-m-d')),
+                    ->value(today()->format('Y-m-d')),
 
                 Select::make('assign_months')
                     ->title('Срок аренды')

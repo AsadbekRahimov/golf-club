@@ -19,6 +19,11 @@ class SettingsScreen extends Screen
         return 'Настройки';
     }
 
+    public function query(): iterable
+    {
+        return [];
+    }
+
     public function commandBar(): iterable
     {
         return [

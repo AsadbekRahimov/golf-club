@@ -4,6 +4,7 @@ namespace App\Orchid\Screens\Subscription;
 
 use App\Models\Subscription;
 use App\Orchid\Filters\SubscriptionStatusFilter;
+use App\Orchid\Filters\SubscriptionTypeFilter;
 use Illuminate\Http\Request;
 use Orchid\Screen\Actions\Button;
 use Orchid\Screen\Actions\Link;
@@ -52,7 +53,7 @@ class SubscriptionListScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Layout::selection([SubscriptionStatusFilter::class]),
+            Layout::selection([SubscriptionStatusFilter::class, SubscriptionTypeFilter::class]),
 
             Layout::table('subscriptions', [
                 TD::make('id', 'ID')->sort(),

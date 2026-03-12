@@ -114,20 +114,9 @@ class CallbackHandler
 
         $title = $serviceType === 'locker' ? '🗄️ *Аренда шкафа*' : '🏌️ *Бронь на тренировку*';
 
-        $durationButtons = $serviceType === 'locker'
-            ? [
-                [['text' => '1 месяц', 'callback_data' => "booking:duration:{$serviceType}:1:{$yearMonth}"]],
-                [['text' => '3 месяца', 'callback_data' => "booking:duration:{$serviceType}:3:{$yearMonth}"]],
-                [['text' => '6 месяцев', 'callback_data' => "booking:duration:{$serviceType}:6:{$yearMonth}"]],
-                [['text' => '12 месяцев', 'callback_data' => "booking:duration:{$serviceType}:12:{$yearMonth}"]],
-            ]
-            : [
-                [['text' => '1 месяц', 'callback_data' => "booking:duration:{$serviceType}:1:{$yearMonth}"]],
-            ];
-
         $keyboard = [
             'inline_keyboard' => [
-                ...$durationButtons,
+                [['text' => '1 месяц', 'callback_data' => "booking:duration:{$serviceType}:1:{$yearMonth}"]],
                 [['text' => '⬅️ Назад', 'callback_data' => "booking:service:{$serviceType}"]],
             ],
         ];
@@ -135,7 +124,7 @@ class CallbackHandler
         $this->editMessage(
             "{$title}\n\n" .
             "Начало: *{$startLabel}*\n\n" .
-            "Выберите срок (мин. 1 месяц):",
+            "Выберите срок:",
             $keyboard
         );
     }

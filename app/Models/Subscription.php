@@ -111,7 +111,7 @@ class Subscription extends Model
             return null;
         }
 
-        return max(0, now()->diffInDays($this->end_date, false));
+        return max(0, today()->diffInDays($this->end_date));
     }
 
     public function getIsExpiringAttribute(): bool

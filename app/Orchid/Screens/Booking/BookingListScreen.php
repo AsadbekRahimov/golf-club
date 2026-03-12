@@ -3,6 +3,7 @@
 namespace App\Orchid\Screens\Booking;
 
 use App\Models\BookingRequest;
+use App\Orchid\Filters\BookingServiceTypeFilter;
 use App\Orchid\Filters\BookingStatusFilter;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
@@ -40,7 +41,7 @@ class BookingListScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Layout::selection([BookingStatusFilter::class]),
+            Layout::selection([BookingStatusFilter::class, BookingServiceTypeFilter::class]),
 
             Layout::table('bookings', [
                 TD::make('id', 'ID')->sort(),

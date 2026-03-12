@@ -4,6 +4,7 @@ namespace App\Orchid\Screens\Client;
 
 use App\Enums\ClientStatus;
 use App\Models\Client;
+use App\Orchid\Filters\ClientSearchFilter;
 use App\Orchid\Filters\ClientStatusFilter;
 use Orchid\Screen\Actions\Link;
 use Orchid\Screen\Screen;
@@ -30,6 +31,11 @@ class ClientListScreen extends Screen
     public function commandBar(): iterable
     {
         return [
+            Link::make('Создать клиента')
+                ->icon('bs.person-plus')
+                ->route('platform.clients.create')
+                ->type(Color::PRIMARY),
+
             Link::make('📥 Экспорт Excel')
                 ->icon('bs.download')
                 ->href(route('platform.export.clients'))
@@ -40,7 +46,7 @@ class ClientListScreen extends Screen
     public function layout(): iterable
     {
         return [
-            Layout::selection([ClientStatusFilter::class]),
+            Layout::selection([ClientSearchFilter::class, ClientStatusFilter::class]),
 
             Layout::table('clients', [
                 TD::make('id', 'ID')

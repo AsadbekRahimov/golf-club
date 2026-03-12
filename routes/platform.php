@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\ExportController;
 use App\Orchid\Screens\Booking\BookingEditScreen;
 use App\Orchid\Screens\Booking\BookingListScreen;
 use App\Orchid\Screens\Booking\BookingPendingScreen;
+use App\Orchid\Screens\Client\ClientCreateScreen;
 use App\Orchid\Screens\Client\ClientEditScreen;
 use App\Orchid\Screens\Client\ClientListScreen;
 use App\Orchid\Screens\Client\ClientPendingScreen;
@@ -37,6 +38,9 @@ Route::screen('/main', DashboardScreen::class)
 // Clients
 Route::screen('/clients/pending', ClientPendingScreen::class)
     ->name('platform.clients.pending');
+
+Route::screen('/clients/create', ClientCreateScreen::class)
+    ->name('platform.clients.create');
 
 Route::screen('/clients/{client}/edit', ClientEditScreen::class)
     ->name('platform.clients.edit');
