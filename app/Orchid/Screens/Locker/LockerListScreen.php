@@ -74,7 +74,7 @@ class LockerListScreen extends Screen
             Layout::rows([
                 Select::make('assign_client_id')
                     ->title('Клиент')
-                    ->fromModel(Client::approved(), 'display_name')
+                    ->options(Client::approved()->get()->pluck('display_name', 'id'))
                     ->empty('Выберите клиента'),
 
                 Select::make('assign_locker_id')

@@ -161,7 +161,7 @@ return [
 
     'template' => [
         'header' => '',
-        'footer' => '',
+        'footer' => 'brand.footer',
     ],
 
     /*
